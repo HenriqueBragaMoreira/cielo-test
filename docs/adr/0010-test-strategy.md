@@ -1,10 +1,12 @@
 # Estratégia de testes
 
-- **Backend, unitários:** transições de estado, elegibilidade, hash do corpo para idempotência e assinatura HMAC.
-- **Backend, integração:** `@SpringBootTest` com **Testcontainers** (Postgres) e **WireMock** no lugar da Central. Cobrem:
+Usamos as costuras mais altas possíveis, que são três: a API HTTP do backend, a rede do frontend e o navegador.
+
+- **Backend, API HTTP (`/api`):** `@SpringBootTest` com **Testcontainers** (Postgres) e **WireMock** no lugar da Central. Elegibilidade, idempotência e assinatura HMAC são verificadas por aqui; a HMAC é conferida no que o WireMock recebeu. Cobrem:
   - respostas da Central: 201/202, 204 com `Retry-After`, 200 `CONFIRMADA`/`REJEITADA`, 503, 404 e timeout;
   - deduplicação e conflitos: envio duplo concorrente, reenvio com a mesma chave, `422` e `409`.
-- **Frontend:** **Vitest + React Testing Library + MSW** para os fluxos principais e as mensagens de erro.
+- **Backend, unitários:** só para lógica pura que justifique um teste próprio, como a máquina de estados da operação.
+- **Frontend:** **Vitest + React Testing Library + MSW** interceptando `/api`, com rotas renderizadas, para os fluxos principais e as mensagens de erro.
 - **E2E:** **Playwright** em `frontend/e2e/`, contra a stack completa do compose com o simulador real:
   - `BEN001`: confirmação, incluindo a espera e a linha do tempo;
   - `BEN002`: rejeição com o motivo;
