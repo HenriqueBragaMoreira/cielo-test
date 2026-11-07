@@ -29,6 +29,8 @@ services:
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/portabilidade
       CENTRAL_URL: http://mock-central:4000
+      # Segredo HMAC só de desenvolvimento (ADR-0009); um segredo real nunca é versionado.
+      CENTRAL_HMAC_SECRET: dev-somente-local-nao-usar-em-producao
     depends_on:
       postgres:
         condition: service_healthy

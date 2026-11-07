@@ -28,6 +28,9 @@ public abstract class ApiTest {
 			// como o simulador (Node http), só HTTP/1.1; com h2c o JDK HttpClient recebe RST_STREAM
 			.http2PlainDisabled(true));
 
+	/** Segredo HMAC dos testes (em produção vem de {@code CENTRAL_HMAC_SECRET}). */
+	protected static final String SEGREDO_HMAC = "segredo-hmac-de-teste";
+
 	static {
 		central.start();
 	}
@@ -35,6 +38,7 @@ public abstract class ApiTest {
 	@DynamicPropertySource
 	static void centralUrl(DynamicPropertyRegistry registry) {
 		registry.add("central.url", central::baseUrl);
+		registry.add("central.hmac-secret", () -> SEGREDO_HMAC);
 	}
 
 	@Autowired

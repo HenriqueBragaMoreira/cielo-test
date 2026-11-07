@@ -10,7 +10,9 @@ public class CentralClient {
 
 	private final RestClient restClient;
 
-	public CentralClient(RestClient.Builder builder, @Value("${central.url}") String centralUrl) {
+	public CentralClient(RestClient.Builder builder, @Value("${central.url}") String centralUrl,
+			@Value("${central.hmac-secret}") String segredoHmac) {
+		builder.requestInterceptor(new AssinaturaHmac(segredoHmac));
 		this.restClient = builder.baseUrl(centralUrl).build();
 	}
 
