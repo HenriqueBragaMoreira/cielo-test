@@ -30,6 +30,7 @@ const pendente: Operacao = {
     { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
     { tipo: "ENVIADA", dataHora: "2026-11-06T13:45:01Z", detalhe: null },
   ],
+  avisoAtualizacao: null,
 }
 
 const confirmada: Operacao = {
@@ -115,6 +116,7 @@ describe("tela da operação", () => {
         { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
         { tipo: "FALHA_ENVIO", dataHora: "2026-11-06T13:45:05Z", detalhe: null },
       ],
+      avisoAtualizacao: null,
     }
     server.use(
       http.get(`/api/operacoes-portabilidade/${id}`, () =>
@@ -231,6 +233,42 @@ describe("tela da operação", () => {
     const eventos = linhaDoTempo()
     expect(eventos).toHaveLength(3)
     expect(eventos[2]).toHaveTextContent("Rejeitada06/11/2026 às 10:45")
+  })
+
+  it("avisa quando não foi possível atualizar o status e continua consultando", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const contador = consultasRespondidasCom(
+      { ...pendente, avisoAtualizacao: "FALHA_NA_ATUALIZACAO" },
+      confirmada
+    )
+    renderApp(`/operacoes-portabilidade/${id}`)
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível atualizar o status da operação; tentando novamente."
+    )
+    expect(screen.getByText("PENDENTE")).toBeVisible()
+    expect(linhaDoTempo()).toHaveLength(2)
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(await screen.findByText("Operação confirmada")).toBeVisible()
+    expect(contador.consultas).toBe(2)
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("avisa quando a Central de Convênios não reconhece mais o protocolo", async () => {
+    consultasRespondidasCom({
+      ...pendente,
+      avisoAtualizacao: "PROTOCOLO_NAO_RECONHECIDO",
+    })
+    renderApp(`/operacoes-portabilidade/${id}`)
+
+    const aviso = await screen.findByRole("alert")
+    expect(aviso).toHaveTextContent(
+      "A Central de Convênios não reconhece mais o protocolo prot-123."
+    )
+    expect(aviso).not.toHaveTextContent("tentando novamente")
+    expect(screen.getByText("PENDENTE")).toBeVisible()
   })
 
   it("o botão Atualizar consulta sob demanda", async () => {

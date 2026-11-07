@@ -20,6 +20,8 @@ export type Operacao = {
   contaDestino: ContaDestino
   /** Na ordem em que aconteceram; `dataHora` é um instante ISO. */
   eventos: { tipo: TipoEvento; dataHora: string; detalhe: string | null }[]
+  /** Por que esta consulta não trouxe o status atual da Central; a operação continua PENDENTE (ADR-0007). */
+  avisoAtualizacao: "FALHA_NA_ATUALIZACAO" | "PROTOCOLO_NAO_RECONHECIDO" | null
 }
 
 export type PedidoOperacao = {
