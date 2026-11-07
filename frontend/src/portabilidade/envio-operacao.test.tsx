@@ -221,6 +221,58 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     expect(botaoEnviar()).toBeEnabled()
   })
 
+  it("FALHA_ENVIO mostra a mensagem e \"Tentar novamente\", que reenvia com a mesma Idempotency-Key", async () => {
+    const detalhe =
+      "A Central de Convênios não respondeu e a operação ficou registrada como falha no envio. Tente novamente."
+    const chaves: (string | null)[] = []
+    server.use(
+      http.get(agendaBen001, () => HttpResponse.json(agenda)),
+      http.post(operacoes, ({ request }) => {
+        chaves.push(request.headers.get("Idempotency-Key"))
+        return chaves.length === 1
+          ? HttpResponse.json(
+              {
+                type: "about:blank",
+                title: "Central de Convênios indisponível",
+                status: 503,
+                detail: detalhe,
+                id: operacaoPendente.id,
+              },
+              {
+                status: 503,
+                headers: { "Content-Type": "application/problem+json" },
+              }
+            )
+          : HttpResponse.json(operacaoPendente, { status: 202 })
+      }),
+      http.get(`${operacoes}/${operacaoPendente.id}`, () =>
+        HttpResponse.json(operacaoPendente)
+      )
+    )
+    const { user, router } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+
+    const alerta = await screen.findByRole("alert")
+    expect(alerta).toHaveTextContent(detalhe)
+    expect(
+      within(alerta).getByRole("link", { name: "Ver a operação" })
+    ).toHaveAttribute("href", `/operacoes-portabilidade/${operacaoPendente.id}`)
+
+    await user.click(
+      within(alerta).getByRole("button", { name: "Tentar novamente" })
+    )
+
+    expect(
+      await screen.findByRole("heading", { name: "Operação de portabilidade" })
+    ).toBeVisible()
+    expect(router.state.location.pathname).toBe(
+      `/operacoes-portabilidade/${operacaoPendente.id}`
+    )
+    expect(chaves).toHaveLength(2)
+    expect(chaves[1]).toBe(chaves[0])
+  })
+
   it("reutiliza a mesma Idempotency-Key ao reenviar e gera outra quando a seleção ou a conta mudam", async () => {
     const chaves = capturarChavesComFalhaDeConexao()
     const { user } = renderApp("/beneficiarios/BEN001/agenda")

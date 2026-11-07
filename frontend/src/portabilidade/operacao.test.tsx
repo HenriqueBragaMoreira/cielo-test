@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react"
+import { screen, within } from "@testing-library/react"
 import { http, HttpResponse } from "msw"
 import { describe, expect, it } from "vitest"
 
@@ -43,6 +43,42 @@ describe("tela da operação", () => {
     expect(screen.getByText("BEN001")).toBeVisible()
     expect(screen.getByRole("row", { name: /Total/ })).toHaveTextContent(
       /R\$\s450,50/
+    )
+  })
+
+  it("mostra a falha no envio na linha do tempo", async () => {
+    const operacao: Operacao = {
+      id,
+      beneficiarioId: "BEN001",
+      status: "FALHA_ENVIO",
+      protocolo: null,
+      motivoRejeicao: null,
+      parcelas: [{ parcelaId: "P001", valor: 150.5 }],
+      contaDestino: {
+        banco: "001",
+        agencia: "1234",
+        conta: "56789",
+        digito: "0",
+      },
+      eventos: [
+        { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
+        { tipo: "FALHA_ENVIO", dataHora: "2026-11-06T13:45:05Z", detalhe: null },
+      ],
+    }
+    server.use(
+      http.get(`/api/operacoes-portabilidade/${id}`, () =>
+        HttpResponse.json(operacao)
+      )
+    )
+    renderApp(`/operacoes-portabilidade/${id}`)
+
+    const linhaDoTempo = within(
+      await screen.findByRole("list", { name: "Linha do tempo" })
+    ).getAllByRole("listitem")
+    expect(linhaDoTempo).toHaveLength(2)
+    expect(linhaDoTempo[0]).toHaveTextContent("Solicitada06/11/2026 às 10:45")
+    expect(linhaDoTempo[1]).toHaveTextContent(
+      "Falha no envio06/11/2026 às 10:45"
     )
   })
 
