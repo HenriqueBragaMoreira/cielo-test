@@ -64,14 +64,15 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 					.orElseGet(() -> enviar(chaveIdempotencia, hashCorpo, beneficiarioId, parcelaIds, conta)));
 		}
 		catch (DataIntegrityViolationException e) {
-			// um índice único esperou o commit de outra requisição: a da mesma chave devolve a operação dela; a de outra
-			// chave que travou alguma destas parcelas (ADR-0005) é um conflito
+			// um índice único esperou o commit de outra requisição: a da mesma chave devolve a operação dela como está,
+			// sem reenviar uma FALHA_ENVIO (seria retry automático, ADR-0007); a de outra chave que travou alguma destas
+			// parcelas (ADR-0005) é um conflito
 			operacao = transacao.execute(status -> {
 				var emOutraOperacao = repository.findParcelasEmOutraOperacaoAtiva(parcelaIds, chaveIdempotencia);
 				if (!emOutraOperacao.isEmpty()) {
 					throw new ParcelaEmOutraOperacaoException(emOutraOperacao);
 				}
-				return repetida(chaveIdempotencia, hashCorpo);
+				return existente(chaveIdempotencia, hashCorpo).map(Operacao::de);
 			}).orElseThrow(() -> e);
 		}
 		// a falha já está gravada; só a resposta é de erro
@@ -86,10 +87,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 	 * chave foi reutilizada. A trava na linha faz um reenvio concorrente esperar este terminar e não enviar de novo.
 	 */
 	private Optional<Operacao> repetida(UUID chaveIdempotencia, String hashCorpo) {
-		return repository.findWithLockByChaveIdempotencia(chaveIdempotencia).map(operacao -> {
-			if (!operacao.mesmaIntencao(hashCorpo)) {
-				throw new ChaveIdempotenciaReutilizadaException(chaveIdempotencia);
-			}
+		return existente(chaveIdempotencia, hashCorpo).map(operacao -> {
 			if (operacao.aguardaReenvio()) {
 				// a reserva vai ao banco antes do envio: parcela travada por outra operação dá 409 sem chamar a Central.
 				// Sem reler a agenda: a operação é a mesma, com os valores lidos na criação
@@ -99,6 +97,15 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 			}
 			return Operacao.de(operacao);
 		});
+	}
+
+	/** A operação já gravada com esta chave, travada, se houver; com outro corpo, a chave foi reutilizada. */
+	private Optional<OperacaoPortabilidade> existente(UUID chaveIdempotencia, String hashCorpo) {
+		var operacao = repository.findWithLockByChaveIdempotencia(chaveIdempotencia);
+		if (operacao.isPresent() && !operacao.get().mesmaIntencao(hashCorpo)) {
+			throw new ChaveIdempotenciaReutilizadaException(chaveIdempotencia);
+		}
+		return operacao;
 	}
 
 	/**

@@ -236,6 +236,29 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 		central.verify(1, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
 	}
 
+	@Test
+	void envioDuploConcorrenteComAMesmaChaveEACentralIndisponivelChamaACentralUmaVez() throws Exception {
+		autorizar("BEN001");
+		agendaDoBen001();
+		// a segunda requisição chega enquanto a primeira espera a Central; a falha da primeira não é reenviada por ela
+		central.stubFor(post("/operacoes-portabilidade").willReturn(serviceUnavailable().withFixedDelay(500)));
+		var chave = UUID.randomUUID();
+		var partida = new CountDownLatch(1);
+		Callable<String> envio = () -> {
+			partida.await();
+			return esperarFalhaNoEnvio(enviar(chave, "BEN001", List.of("P001"), CONTA_DESTINO));
+		};
+
+		try (var executor = Executors.newFixedThreadPool(2)) {
+			var primeira = executor.submit(envio);
+			var segunda = executor.submit(envio);
+			partida.countDown();
+
+			assertThat(segunda.get()).isEqualTo(primeira.get());
+		}
+		central.verify(1, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
 	static Stream<Arguments> centralIndisponivelNoEnvio() {
 		return Stream.of(
 				Arguments.of("503", serviceUnavailable()),
