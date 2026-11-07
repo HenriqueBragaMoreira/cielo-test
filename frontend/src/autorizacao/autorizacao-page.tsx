@@ -75,6 +75,14 @@ export function AutorizacaoPage() {
             Registrar autorização
           </Button>
         </form>
+        {registro.error && (
+          <p
+            role="alert"
+            className="mt-4 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
+          >
+            {registro.error.message}
+          </p>
+        )}
         {registro.data && (
           <div
             role="status"

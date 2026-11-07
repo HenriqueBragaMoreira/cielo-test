@@ -1,3 +1,5 @@
+import { lancarErroApi } from "@/lib/api"
+
 export type Autorizacao = {
   beneficiarioId: string
   autorizacaoId: string
@@ -12,7 +14,7 @@ export async function registrarAutorizacao(beneficiarioId: string) {
     body: JSON.stringify({ beneficiarioId }),
   })
   if (!resposta.ok) {
-    throw new Error(`Falha ao registrar a autorização (${resposta.status})`)
+    await lancarErroApi(resposta)
   }
   const autorizacao: Autorizacao = await resposta.json()
   return { autorizacao, nova: resposta.status === 201 }

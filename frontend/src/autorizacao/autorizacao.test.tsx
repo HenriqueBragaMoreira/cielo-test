@@ -88,6 +88,60 @@ describe("registrar a autorização", () => {
       "O beneficiário BEN001 já tinha uma autorização registrada em 01/11/2026 às 09:00."
     )
   })
+
+  it("mostra a mensagem de Central indisponível e mantém o formulário preenchido", async () => {
+    server.use(
+      http.post("/api/autorizacoes", () =>
+        HttpResponse.json(
+          {
+            type: "about:blank",
+            title: "Central de Convênios indisponível",
+            status: 503,
+            detail:
+              "A Central de Convênios não respondeu. Tente novamente mais tarde.",
+          },
+          {
+            status: 503,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      )
+    )
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A Central de Convênios não respondeu. Tente novamente mais tarde."
+    )
+    expect(screen.getByLabelText("Identificador do beneficiário")).toHaveValue(
+      "BEN001"
+    )
+    expect(
+      screen.getByRole("checkbox", {
+        name: "O beneficiário autoriza a consulta da agenda e a portabilidade das parcelas",
+      })
+    ).toBeChecked()
+    expect(
+      screen.getByRole("button", { name: "Registrar autorização" })
+    ).toBeEnabled()
+  })
+
+  it("mostra uma mensagem genérica quando o erro não vem como problem+json", async () => {
+    server.use(
+      http.post(
+        "/api/autorizacoes",
+        () => new HttpResponse("<html>Bad Gateway</html>", { status: 502 })
+      )
+    )
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível concluir a requisição. Tente novamente mais tarde."
+    )
+  })
 })
 
 async function preencherEEnviar(
