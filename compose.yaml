@@ -36,13 +36,19 @@ services:
         condition: service_healthy
       mock-central:
         condition: service_started
+    # Pronto quando o Tomcat aceita conexões; sem isso o `up --wait` volta antes e o nginx dá 502.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8080"]
+      interval: 2s
+      retries: 60
 
   frontend:
     build: ./frontend
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres-data:
