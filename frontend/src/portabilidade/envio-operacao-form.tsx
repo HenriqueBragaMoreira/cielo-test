@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { useRef, type ComponentProps } from "react"
+import { useEffect, useRef, type ComponentProps } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
@@ -53,11 +53,22 @@ export function EnvioOperacaoForm({
       digito: "",
     },
   })
+  // a agenda atualizada pode tornar inelegível, ou tirar dela, uma parcela já selecionada: ela sai da seleção
+  useEffect(() => {
+    const selecao = form.getValues("parcelaIds")
+    const elegiveis = selecao.filter((id) =>
+      parcelas.some((parcela) => parcela.parcelaId === id && parcela.elegivel)
+    )
+    if (elegiveis.length !== selecao.length) {
+      form.setValue("parcelaIds", elegiveis)
+    }
+  }, [form, parcelas])
   const selecionadas = useWatch({ control: form.control, name: "parcelaIds" })
   const total = parcelas
     .filter((parcela) => selecionadas.includes(parcela.parcelaId))
     .reduce((soma, parcela) => soma + parcela.valor, 0)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const envio = useMutation({
     mutationFn: ({ parcelaIds, ...contaDestino }: Formulario) => {
       const pedido = { beneficiarioId, parcelaIds, contaDestino }
@@ -75,6 +86,15 @@ export function EnvioOperacaoForm({
       // 422: o pedido não será aceito como está; o próximo envio é uma nova intenção
       if (erro instanceof ErroApi && erro.status === 422) {
         intencao.current = null
+      }
+      // 409 e 422: a agenda atualizada mostra as parcelas recusadas como inelegíveis
+      if (
+        erro instanceof ErroApi &&
+        (erro.status === 409 || erro.status === 422)
+      ) {
+        void queryClient.invalidateQueries({
+          queryKey: ["agenda", beneficiarioId],
+        })
       }
     },
     onSuccess: (operacao) =>
