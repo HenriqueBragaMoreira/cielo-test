@@ -87,6 +87,13 @@ class OperacaoPortabilidade {
 		registrar(TipoEvento.ENVIADA, null);
 	}
 
+	/** A Central decidiu: confirmação, ou rejeição com o motivo. A data/hora do evento é a da observação (ADR-0007). */
+	void registrarDecisao(StatusOperacao decisao, String motivoRejeicao) {
+		status = status.transicionarPara(decisao);
+		this.motivoRejeicao = motivoRejeicao;
+		registrar(decisao == StatusOperacao.CONFIRMADA ? TipoEvento.CONFIRMADA : TipoEvento.REJEITADA, motivoRejeicao);
+	}
+
 	private void registrar(TipoEvento tipo, String detalhe) {
 		var instante = agora();
 		atualizadaEm = instante;
