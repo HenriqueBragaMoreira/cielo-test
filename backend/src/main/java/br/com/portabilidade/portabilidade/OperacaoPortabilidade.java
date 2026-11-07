@@ -95,8 +95,16 @@ class OperacaoPortabilidade {
 	}
 
 	/**
-	 * A primeira tentativa de envio define o estado inicial; um reenvio, a partir de FALHA_ENVIO, é uma transição
-	 * (ADR-0007). Antes da primeira tentativa a operação está PENDENTE sem protocolo, só dentro da transação do envio.
+	 * Reenvio a partir de FALHA_ENVIO: volta a PENDENTE sem protocolo, como na criação, para reservar de novo as parcelas
+	 * antes do envio à Central (ADR-0005). Esse estado também só existe dentro da transação do envio.
+	 */
+	void reservarParaReenvio() {
+		status = status.transicionarPara(StatusOperacao.PENDENTE);
+	}
+
+	/**
+	 * A tentativa de envio parte de PENDENTE sem protocolo (a criação ou a reserva do reenvio) e termina no estado que a
+	 * Central der; visto de fora da transação, é o estado inicial ou a transição a partir de FALHA_ENVIO (ADR-0007).
 	 */
 	private StatusOperacao depoisDoEnvio(StatusOperacao resultado) {
 		var primeiraTentativa = status == StatusOperacao.PENDENTE && protocolo == null;

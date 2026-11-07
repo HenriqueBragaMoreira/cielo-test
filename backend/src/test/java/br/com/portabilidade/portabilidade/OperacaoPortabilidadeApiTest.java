@@ -369,6 +369,113 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 	}
 
 	@Test
+	void parcelaEmOperacaoAtivaComOutraChaveRespondeConflictSemEnviarACentral() {
+		operacaoPendente("prot-1");
+		central.resetRequests();
+
+		esperarParcelaEmOutraOperacao(enviar(UUID.randomUUID(), "BEN001", List.of("P001", "P002"), CONTA_DESTINO),
+				"[P001]");
+
+		central.verify(0, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
+	@Test
+	void parcelaDeOperacaoConfirmadaNaoPodeSerPortadaDeNovo() {
+		var id = operacaoPendente("prot-1");
+		centralDecide("prot-1", """
+				{ "status": "CONFIRMADA", "motivoRejeicao": null }""");
+		api.get().uri("/api/operacoes-portabilidade/{id}", id).exchange().expectBody().jsonPath("$.status")
+				.isEqualTo("CONFIRMADA");
+		central.resetRequests();
+
+		esperarParcelaEmOutraOperacao(enviar(UUID.randomUUID(), "BEN001", List.of("P001"), CONTA_DESTINO), "[P001]");
+
+		central.verify(0, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
+	@Test
+	void parcelaDeOperacaoRejeitadaPodeSerPortadaDeNovo() {
+		var id = operacaoPendente("prot-1");
+		centralDecide("prot-1", """
+				{ "status": "REJEITADA", "motivoRejeicao": "Beneficiário atingiu o limite de margem consignável" }""");
+		api.get().uri("/api/operacoes-portabilidade/{id}", id).exchange().expectBody().jsonPath("$.status")
+				.isEqualTo("REJEITADA");
+		centralAceitaOEnvio("prot-2");
+
+		enviar(UUID.randomUUID(), "BEN001", List.of("P001"), CONTA_DESTINO)
+				.expectStatus().isAccepted()
+				.expectBody()
+				.jsonPath("$.id").value(String.class, nova -> assertThat(nova).isNotEqualTo(id))
+				.jsonPath("$.status").isEqualTo("PENDENTE")
+				.jsonPath("$.protocolo").isEqualTo("prot-2");
+	}
+
+	@Test
+	void reenvioAPartirDeFalhaEnvioComAParcelaJaEmOutraOperacaoRespondeConflictSemEnviarACentral() {
+		autorizar("BEN001");
+		agendaDoBen001();
+		central.stubFor(post("/operacoes-portabilidade").willReturn(serviceUnavailable()));
+		var chave = UUID.randomUUID();
+		String id = esperarFalhaNoEnvio(enviar(chave, "BEN001", List.of("P001"), CONTA_DESTINO));
+		centralAceitaOEnvio("prot-2");
+		enviar(UUID.randomUUID(), "BEN001", List.of("P001"), CONTA_DESTINO).expectStatus().isAccepted();
+		central.resetRequests();
+
+		esperarParcelaEmOutraOperacao(enviar(chave, "BEN001", List.of("P001"), CONTA_DESTINO), "[P001]");
+
+		central.verify(0, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("FALHA_ENVIO")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "FALHA_ENVIO"));
+	}
+
+	@Test
+	void envioConcorrenteDaMesmaParcelaComChavesDiferentesCriaUmaOperacaoEDaConflictNaOutra() throws Exception {
+		autorizar("BEN001");
+		agendaDoBen001();
+		// a demora mantém a primeira transação aberta com a parcela travada quando a segunda tenta inseri-la
+		central.stubFor(post("/operacoes-portabilidade").willReturn(okJson("""
+				{ "protocolo": "prot-1" }""").withStatus(202).withFixedDelay(500)));
+		var partida = new CountDownLatch(1);
+		Callable<Integer> envio = () -> {
+			partida.await();
+			return enviar(UUID.randomUUID(), "BEN001", List.of("P001"), CONTA_DESTINO)
+					.returnResult().getStatus().value();
+		};
+
+		try (var executor = Executors.newFixedThreadPool(2)) {
+			var primeira = executor.submit(envio);
+			var segunda = executor.submit(envio);
+			partida.countDown();
+
+			assertThat(List.of(primeira.get(), segunda.get())).containsExactlyInAnyOrder(202, 409);
+		}
+		central.verify(1, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
+	@Test
+	void parcelaInelegivelNaAgendaRespondeUnprocessableSemEnviarACentral() {
+		autorizar("BEN001");
+		central.stubFor(get("/beneficiarios/BEN001/agenda").willReturn(okJson("""
+				[
+				  { "parcelaId": "P001", "convenioId": "CONV01", "valor": 150.5, "dataDesconto": "2026-01-10", "status": "ABERTA" },
+				  { "parcelaId": "P002", "convenioId": "CONV01", "valor": 300, "dataDesconto": "2026-02-10", "status": "QUITADA" }
+				]""")));
+
+		enviar(UUID.randomUUID(), "BEN001", List.of("P001", "P002"), CONTA_DESTINO)
+				.expectStatus().isEqualTo(422)
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.title").isEqualTo("Parcela inelegível")
+				.jsonPath("$.detail").isEqualTo("Estas parcelas não podem mais ser portadas: P002 (A parcela está com"
+						+ " status QUITADA; só parcelas ABERTA podem ser portadas.). Atualize a agenda e envie novamente.");
+
+		central.verify(0, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
+	@Test
 	void consultaDevolveAOperacaoComoFoiGravada() {
 		autorizar("BEN001");
 		agendaDoBen001();
@@ -560,6 +667,17 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 
 	private static void centralDecide(String protocolo, String decisao) {
 		central.stubFor(get("/operacoes-portabilidade/" + protocolo).willReturn(okJson(decisao)));
+	}
+
+	/** A resposta é o {@code 409} {@code problem+json} da trava de parcela (ADR-0005), com as parcelas em conflito. */
+	private static void esperarParcelaEmOutraOperacao(RestTestClient.ResponseSpec resposta, String parcelaIds) {
+		resposta.expectStatus().isEqualTo(409)
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.status").isEqualTo(409)
+				.jsonPath("$.title").isEqualTo("Parcela em outra operação")
+				.jsonPath("$.detail").isEqualTo("As parcelas " + parcelaIds + " já estão numa operação de portabilidade"
+						+ " pendente ou confirmada. Retire-as da seleção e envie novamente.");
 	}
 
 	private RestTestClient.ResponseSpec enviar(UUID chave, String beneficiarioId, List<String> parcelaIds,

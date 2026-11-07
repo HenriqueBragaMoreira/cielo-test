@@ -1,5 +1,7 @@
 package br.com.portabilidade.portabilidade;
 
+import br.com.portabilidade.agenda.Elegibilidade;
+import br.com.portabilidade.agenda.TravaDeParcelas;
 import br.com.portabilidade.autorizacao.Autorizacao;
 import br.com.portabilidade.autorizacao.AutorizacaoService;
 import br.com.portabilidade.central.CentralClient;
@@ -17,15 +19,18 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-class OperacaoPortabilidadeService {
+class OperacaoPortabilidadeService implements TravaDeParcelas {
 
 	private static final Logger log = LoggerFactory.getLogger(OperacaoPortabilidadeService.class);
 
@@ -58,8 +63,15 @@ class OperacaoPortabilidadeService {
 					.orElseGet(() -> enviar(chaveIdempotencia, hashCorpo, beneficiarioId, parcelaIds, conta)));
 		}
 		catch (DataIntegrityViolationException e) {
-			// requisição concorrente com a mesma chave: a inserção esperou no índice único até o commit da outra
-			operacao = transacao.execute(status -> repetida(chaveIdempotencia, hashCorpo)).orElseThrow(() -> e);
+			// um índice único esperou o commit de outra requisição: a da mesma chave devolve a operação dela; a de outra
+			// chave que travou alguma destas parcelas (ADR-0005) é um conflito
+			operacao = transacao.execute(status -> {
+				var emOutraOperacao = repository.findParcelasEmOutraOperacaoAtiva(parcelaIds, chaveIdempotencia);
+				if (!emOutraOperacao.isEmpty()) {
+					throw new ParcelaEmOutraOperacaoException(emOutraOperacao);
+				}
+				return repetida(chaveIdempotencia, hashCorpo);
+			}).orElseThrow(() -> e);
 		}
 		// a falha já está gravada; só a resposta é de erro
 		if (operacao.status() == StatusOperacao.FALHA_ENVIO) {
@@ -78,6 +90,10 @@ class OperacaoPortabilidadeService {
 				throw new ChaveIdempotenciaReutilizadaException(chaveIdempotencia);
 			}
 			if (operacao.aguardaReenvio()) {
+				// a reserva vai ao banco antes do envio: parcela travada por outra operação dá 409 sem chamar a Central.
+				// Sem reler a agenda: a operação é a mesma, com os valores lidos na criação
+				operacao.reservarParaReenvio();
+				repository.flush();
 				enviarACentral(operacao, autorizacoes.exigirAutorizacao(operacao.getBeneficiarioId()));
 			}
 			return Operacao.de(operacao);
@@ -140,12 +156,27 @@ class OperacaoPortabilidadeService {
 		return Operacao.de(operacao);
 	}
 
+	@Override
+	public Set<String> travadas(Collection<String> parcelaIds) {
+		// sem parcelas não há o que consultar, e "in ()" nem é SQL válido
+		return parcelaIds.isEmpty() ? Set.of() : repository.findParcelasTravadas(parcelaIds);
+	}
+
 	private List<ParcelaOperacao> lerDaAgenda(String beneficiarioId, List<String> parcelaIds) {
 		var agenda = central.consultarAgenda(beneficiarioId).stream()
 				.collect(Collectors.toMap(CentralClient.Parcela::parcelaId, Function.identity()));
 		var foraDaAgenda = parcelaIds.stream().filter(id -> !agenda.containsKey(id)).toList();
 		if (!foraDaAgenda.isEmpty()) {
 			throw new ParcelaForaDaAgendaException(beneficiarioId, foraDaAgenda);
+		}
+		// só a elegibilidade da Central: a trava de parcela fica no banco e dá 409 (ADR-0005)
+		var inelegiveis = parcelaIds.stream()
+				.map(id -> Map.entry(id, Elegibilidade.de(agenda.get(id))))
+				.filter(parcela -> !parcela.getValue().elegivel())
+				.map(parcela -> parcela.getKey() + " (" + parcela.getValue().motivoInelegibilidade() + ")")
+				.toList();
+		if (!inelegiveis.isEmpty()) {
+			throw new ParcelaInelegivelException(inelegiveis);
 		}
 		return parcelaIds.stream().map(id -> new ParcelaOperacao(id, agenda.get(id).valor())).toList();
 	}
