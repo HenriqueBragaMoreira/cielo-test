@@ -1,4 +1,4 @@
-import { lancarErroApi } from "@/lib/api"
+import { buscarApi } from "@/lib/api"
 
 export type Parcela = {
   parcelaId: string
@@ -12,12 +12,9 @@ export type Parcela = {
 }
 
 export async function consultarAgenda(beneficiarioId: string) {
-  const resposta = await fetch(
+  const resposta = await buscarApi(
     `/api/beneficiarios/${encodeURIComponent(beneficiarioId)}/agenda`
   )
-  if (!resposta.ok) {
-    await lancarErroApi(resposta)
-  }
   const parcelas: Parcela[] = await resposta.json()
   return parcelas
 }

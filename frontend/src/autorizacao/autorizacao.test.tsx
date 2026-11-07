@@ -168,6 +168,37 @@ describe("registrar a autorização", () => {
       "Não foi possível concluir a requisição. Tente novamente mais tarde."
     )
   })
+
+  it("mostra uma mensagem genérica quando a requisição não chega ao backend", async () => {
+    server.use(http.post("/api/autorizacoes", () => HttpResponse.error()))
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível concluir a requisição. Tente novamente mais tarde."
+    )
+  })
+
+  it("mostra uma mensagem genérica quando o problem+json é ilegível", async () => {
+    server.use(
+      http.post(
+        "/api/autorizacoes",
+        () =>
+          new HttpResponse("{", {
+            status: 500,
+            headers: { "Content-Type": "application/problem+json" },
+          })
+      )
+    )
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível concluir a requisição. Tente novamente mais tarde."
+    )
+  })
 })
 
 async function preencherEEnviar(

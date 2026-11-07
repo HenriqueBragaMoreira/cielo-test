@@ -1,4 +1,4 @@
-import { lancarErroApi } from "@/lib/api"
+import { buscarApi } from "@/lib/api"
 
 export type Autorizacao = {
   beneficiarioId: string
@@ -12,14 +12,11 @@ export type RegistroAutorizacao = Awaited<
 
 /** `nova` distingue a autorização registrada agora (201) da que já existia (200). */
 export async function registrarAutorizacao(beneficiarioId: string) {
-  const resposta = await fetch("/api/autorizacoes", {
+  const resposta = await buscarApi("/api/autorizacoes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ beneficiarioId }),
   })
-  if (!resposta.ok) {
-    await lancarErroApi(resposta)
-  }
   const autorizacao: Autorizacao = await resposta.json()
   return { autorizacao, nova: resposta.status === 201 }
 }
