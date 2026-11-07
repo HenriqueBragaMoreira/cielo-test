@@ -1,0 +1,46 @@
+# App completo: docker compose up --build → http://localhost:8080
+# Desenvolvimento: docker compose up postgres mock-central, com backend e frontend locais.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: portabilidade
+      POSTGRES_USER: portabilidade
+      POSTGRES_PASSWORD: portabilidade
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portabilidade -d portabilidade"]
+      interval: 2s
+      retries: 30
+
+  mock-central:
+    image: node:24-alpine
+    command: ["node", "/app/mock-central.js"]
+    volumes:
+      - ./mock-central/mock-central.js:/app/mock-central.js:ro
+    ports:
+      - "4000:4000"
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/portabilidade
+      CENTRAL_URL: http://mock-central:4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-central:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
