@@ -87,6 +87,13 @@ class OperacaoPortabilidade {
 		registrar(TipoEvento.ENVIADA, null);
 	}
 
+	/** A Central decidiu: confirmação, ou rejeição com o motivo. A data/hora do evento é a da observação (ADR-0007). */
+	void registrarDecisao(StatusOperacao decisao, String motivoRejeicao) {
+		status = status.transicionarPara(decisao);
+		this.motivoRejeicao = motivoRejeicao;
+		registrar(decisao == StatusOperacao.CONFIRMADA ? TipoEvento.CONFIRMADA : TipoEvento.REJEITADA, motivoRejeicao);
+	}
+
 	/** O pedido tem o mesmo corpo do que criou esta operação, ou seja, é a mesma intenção (ADR-0005). */
 	boolean mesmaIntencao(String hashCorpo) {
 		return this.hashCorpo.equals(hashCorpo);

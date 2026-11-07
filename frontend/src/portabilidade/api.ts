@@ -45,10 +45,17 @@ export async function enviarOperacao(
   return operacao
 }
 
-export async function consultarOperacao(id: string) {
+/**
+ * A cada consulta de uma operação PENDENTE o backend pergunta à Central pela decisão (ADR-0008). `repetirEmMs` vem do
+ * `Retry-After`, que o backend só envia enquanto a operação está PENDENTE; sem ele (`false`), não há o que esperar.
+ */
+export async function consultarOperacao(id: string, signal?: AbortSignal) {
   const resposta = await buscarApi(
-    `/api/operacoes-portabilidade/${encodeURIComponent(id)}`
+    `/api/operacoes-portabilidade/${encodeURIComponent(id)}`,
+    { signal }
   )
   const operacao: Operacao = await resposta.json()
-  return operacao
+  const repetirEmMs: number | false =
+    Number(resposta.headers.get("Retry-After")) * 1000 || false
+  return { operacao, repetirEmMs }
 }

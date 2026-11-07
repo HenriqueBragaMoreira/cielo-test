@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,10 +41,18 @@ class OperacaoPortabilidadeController {
 				request.parcelaIds(), request.contaDestino()));
 	}
 
-	/** A operação pelo nosso identificador, não pelo protocolo da Central. */
+	/**
+	 * A operação pelo nosso identificador, não pelo protocolo da Central. Enquanto {@code PENDENTE}, o header
+	 * {@code Retry-After} indica quando consultar de novo (ADR-0008).
+	 */
 	@GetMapping("/{id}")
-	OperacaoPortabilidadeService.Operacao consultar(@PathVariable UUID id) {
-		return service.consultar(id);
+	ResponseEntity<OperacaoPortabilidadeService.Operacao> consultar(@PathVariable UUID id) {
+		var operacao = service.consultar(id);
+		var resposta = ResponseEntity.ok();
+		if (operacao.status() == StatusOperacao.PENDENTE) {
+			resposta.header(HttpHeaders.RETRY_AFTER, "2");
+		}
+		return resposta.body(operacao);
 	}
 
 	/** Parcelas repetidas contam uma vez só; os tamanhos máximos são os das colunas. */
