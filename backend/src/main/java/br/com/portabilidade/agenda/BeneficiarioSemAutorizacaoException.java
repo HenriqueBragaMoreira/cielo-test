@@ -1,17 +1,18 @@
 package br.com.portabilidade.agenda;
 
-/** A agenda só é servida a beneficiários com autorização registrada na plataforma. */
-public class BeneficiarioSemAutorizacaoException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponseException;
 
-	private final String beneficiarioId;
+/**
+ * Dados do beneficiário só são servidos com autorização registrada na plataforma.
+ * Título e detalhe do {@code 403} vêm de {@code messages.properties}.
+ */
+public class BeneficiarioSemAutorizacaoException extends ErrorResponseException {
 
 	BeneficiarioSemAutorizacaoException(String beneficiarioId) {
-		super("Beneficiário sem autorização: " + beneficiarioId);
-		this.beneficiarioId = beneficiarioId;
-	}
-
-	public String getBeneficiarioId() {
-		return beneficiarioId;
+		super(HttpStatus.FORBIDDEN, ProblemDetail.forStatus(HttpStatus.FORBIDDEN), null, null,
+				new Object[] { beneficiarioId });
 	}
 
 }
