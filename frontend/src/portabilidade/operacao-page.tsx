@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import {
+  CircleAlertIcon,
   CircleCheckIcon,
   CircleXIcon,
   LoaderCircleIcon,
@@ -163,8 +164,22 @@ function SituacaoOperacao({
           </div>
         </div>
       )
-    default:
-      return null
+    case "FALHA_ENVIO":
+      return (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
+        >
+          <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-medium">Falha no envio</p>
+            <p>
+              A Central de Convênios não respondeu e a operação não foi enviada.
+              As parcelas ficaram liberadas.
+            </p>
+          </div>
+        </div>
+      )
   }
 }
 
