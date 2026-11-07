@@ -23,27 +23,19 @@ class AgendaService {
 	List<ParcelaAgenda> consultar(String beneficiarioId) {
 		autorizacoes.exigirAutorizacao(beneficiarioId);
 		return central.consultarAgenda(beneficiarioId).stream()
-				.map(parcela -> {
-					var motivo = motivoInelegibilidade(parcela);
-					return new ParcelaAgenda(parcela.parcelaId(), parcela.convenioId(), parcela.valor(), parcela.dataDesconto(),
-							parcela.status(), motivo == null, motivo);
-				})
+				.map(ParcelaAgenda::de)
 				.toList();
-	}
-
-	/**
-	 * Regras de elegibilidade (ADR-0006); {@code null} quando a parcela é elegível.
-	 * O PRD de portabilidade acrescenta aqui "não está numa operação PENDENTE ou CONFIRMADA".
-	 */
-	private static String motivoInelegibilidade(CentralClient.Parcela parcela) {
-		if (!"ABERTA".equals(parcela.status())) {
-			return "A parcela está com status " + parcela.status() + "; só parcelas ABERTA podem ser portadas.";
-		}
-		return null;
 	}
 
 	record ParcelaAgenda(String parcelaId, String convenioId, BigDecimal valor, LocalDate dataDesconto, String status,
 			boolean elegivel, String motivoInelegibilidade) {
+
+		static ParcelaAgenda de(CentralClient.Parcela parcela) {
+			var elegibilidade = Elegibilidade.de(parcela);
+			return new ParcelaAgenda(parcela.parcelaId(), parcela.convenioId(), parcela.valor(), parcela.dataDesconto(),
+					parcela.status(), elegibilidade.elegivel(), elegibilidade.motivoInelegibilidade());
+		}
+
 	}
 
 }
