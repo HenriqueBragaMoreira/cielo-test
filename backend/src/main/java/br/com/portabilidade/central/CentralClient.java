@@ -2,6 +2,7 @@ package br.com.portabilidade.central;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -11,6 +12,7 @@ import org.springframework.web.client.RestClientException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Único adaptador HTTP para a Central de Convênios (ADR-0002). */
@@ -44,6 +46,37 @@ public class CentralClient {
 				}));
 	}
 
+	/** Envia a operação de portabilidade à Central e devolve o protocolo atribuído por ela. */
+	public String enviarOperacao(EnvioOperacao envio) {
+		return chamar(() -> restClient.post()
+				.uri("/operacoes-portabilidade")
+				.body(envio)
+				.retrieve()
+				.body(EnvioOperacaoResponse.class))
+				.protocolo();
+	}
+
+	/**
+	 * Consulta a operação pelo protocolo. Vazio enquanto a Central ainda decide ({@code 204}, sem corpo), que não é
+	 * falha; {@link ProtocoloNaoReconhecidoException} se ela responder {@code 404}.
+	 */
+	public Optional<DecisaoOperacao> consultarOperacao(String protocolo) {
+		var resposta = chamar(() -> restClient.get()
+				.uri("/operacoes-portabilidade/{protocolo}", protocolo)
+				.retrieve()
+				.onStatus(status -> status.isSameCodeAs(HttpStatus.NOT_FOUND), (requisicao, erro) -> {
+					throw new ProtocoloNaoReconhecidoException(protocolo);
+				})
+				.toEntity(DecisaoOperacao.class));
+		if (resposta.getStatusCode().isSameCodeAs(HttpStatus.NO_CONTENT)) {
+			return Optional.empty();
+		}
+		if (resposta.getBody() == null) {
+			throw new FalhaNaIntegracaoException("Resposta da Central de Convênios sem corpo", null);
+		}
+		return Optional.of(resposta.getBody());
+	}
+
 	/**
 	 * Traduz conexão recusada, timeout ({@link ResourceAccessException}) e 5xx em {@link CentralIndisponivelException};
 	 * qualquer outra falha da chamada (4xx, corpo ilegível ou vazio) em {@link FalhaNaIntegracaoException}.
@@ -63,7 +96,35 @@ public class CentralClient {
 		return resposta;
 	}
 
+	/** Decisão da Central sobre a operação: {@code CONFIRMADA}, ou {@code REJEITADA} com o motivo. */
+	public record DecisaoOperacao(String status, String motivoRejeicao) {
+
+		public DecisaoOperacao {
+			if (!"CONFIRMADA".equals(status) && !"REJEITADA".equals(status)) {
+				throw new IllegalArgumentException("Decisão da Central com status desconhecido: " + status);
+			}
+		}
+
+	}
+
 	public record Parcela(String parcelaId, String convenioId, BigDecimal valor, LocalDate dataDesconto, String status) {
+	}
+
+	public record EnvioOperacao(String beneficiarioId, String autorizacaoId, List<String> parcelaIds,
+			ContaDestino contaDestino) {
+	}
+
+	public record ContaDestino(String banco, String agencia, String conta, String digito) {
+	}
+
+	private record EnvioOperacaoResponse(String protocolo) {
+
+		EnvioOperacaoResponse {
+			if (protocolo == null) {
+				throw new IllegalArgumentException("Resposta da Central sem protocolo");
+			}
+		}
+
 	}
 
 	private record AutorizacaoRequest(String beneficiarioId) {

@@ -81,14 +81,14 @@ describe("consultar a agenda", () => {
         problema(
           403,
           "Beneficiário sem autorização",
-          "O beneficiário BEN001 não tem autorização registrada. Registre a autorização antes de consultar a agenda."
+          "O beneficiário BEN001 não tem autorização registrada. Registre a autorização antes de consultar a agenda ou portar parcelas."
         )
       )
     )
     const { user, router } = renderApp("/beneficiarios/BEN001/agenda")
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "O beneficiário BEN001 não tem autorização registrada. Registre a autorização antes de consultar a agenda."
+      "O beneficiário BEN001 não tem autorização registrada. Registre a autorização antes de consultar a agenda ou portar parcelas."
     )
     await user.click(
       screen.getByRole("link", { name: "Registrar a autorização" })

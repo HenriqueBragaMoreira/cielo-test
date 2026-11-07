@@ -1,11 +1,16 @@
-/** Erro de uma chamada à `/api`; `message` é o `detail` do `problem+json`, já legível para o usuário. */
+/**
+ * Erro de uma chamada à `/api`; `message` é o `detail` do `problem+json`, já legível para o usuário, e `id` é o do
+ * recurso gravado apesar do erro, quando o `problem+json` o traz (ex.: a operação em `FALHA_ENVIO`).
+ */
 export class ErroApi extends Error {
   readonly status: number
+  readonly id: string | undefined
 
-  constructor(status: number, mensagem: string) {
+  constructor(status: number, mensagem: string, id?: string) {
     super(mensagem)
     this.name = "ErroApi"
     this.status = status
+    this.id = id
   }
 }
 
@@ -26,10 +31,14 @@ export async function buscarApi(url: string, init?: RequestInit) {
 /** Lança um `ErroApi` a partir de uma resposta de erro, lida como `problem+json` quando o backend a enviou. */
 async function lancarErroApi(resposta: Response): Promise<never> {
   // sem problem+json legível (ex.: o proxy com o backend fora do ar), cai na mensagem genérica
-  const problema: { detail?: string } = resposta.headers
+  const problema: { detail?: string; id?: string } = resposta.headers
     .get("Content-Type")
     ?.includes("application/problem+json")
     ? await resposta.json().catch(() => ({}))
     : {}
-  throw new ErroApi(resposta.status, problema.detail ?? MENSAGEM_GENERICA)
+  throw new ErroApi(
+    resposta.status,
+    problema.detail ?? MENSAGEM_GENERICA,
+    problema.id
+  )
 }
