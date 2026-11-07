@@ -1,6 +1,6 @@
 package br.com.portabilidade.agenda;
 
-import br.com.portabilidade.autorizacao.AutorizacaoRepository;
+import br.com.portabilidade.autorizacao.AutorizacaoService;
 import br.com.portabilidade.central.CentralClient;
 import org.springframework.stereotype.Service;
 
@@ -11,19 +11,17 @@ import java.util.List;
 @Service
 class AgendaService {
 
-	private final AutorizacaoRepository autorizacoes;
+	private final AutorizacaoService autorizacoes;
 	private final CentralClient central;
 
-	AgendaService(AutorizacaoRepository autorizacoes, CentralClient central) {
+	AgendaService(AutorizacaoService autorizacoes, CentralClient central) {
 		this.autorizacoes = autorizacoes;
 		this.central = central;
 	}
 
 	/** A agenda da Central, com a elegibilidade de cada parcela; só para beneficiários com autorização registrada. */
 	List<ParcelaAgenda> consultar(String beneficiarioId) {
-		if (!autorizacoes.existsById(beneficiarioId)) {
-			throw new BeneficiarioSemAutorizacaoException(beneficiarioId);
-		}
+		autorizacoes.exigirAutorizacao(beneficiarioId);
 		return central.consultarAgenda(beneficiarioId).stream()
 				.map(parcela -> {
 					var motivo = motivoInelegibilidade(parcela);

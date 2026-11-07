@@ -1,4 +1,4 @@
-package br.com.portabilidade.agenda;
+package br.com.portabilidade.autorizacao;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
