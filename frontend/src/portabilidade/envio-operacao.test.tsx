@@ -220,7 +220,78 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     expect(selecao("P001")).toBeChecked()
     expect(botaoEnviar()).toBeEnabled()
   })
+
+  it("reutiliza a mesma Idempotency-Key ao reenviar e gera outra quando a seleção ou a conta mudam", async () => {
+    const chaves = capturarChavesComFalhaDeConexao()
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+    await screen.findByRole("alert")
+    await user.click(botaoEnviar())
+    await vi.waitFor(() => expect(chaves).toHaveLength(2))
+    expect(chaves[1]).toBe(chaves[0])
+
+    await user.click(selecao("P002"))
+    await user.click(botaoEnviar())
+    await vi.waitFor(() => expect(chaves).toHaveLength(3))
+    expect(chaves[2]).not.toBe(chaves[1])
+
+    await user.click(botaoEnviar())
+    await vi.waitFor(() => expect(chaves).toHaveLength(4))
+    expect(chaves[3]).toBe(chaves[2])
+
+    await user.clear(screen.getByLabelText("Conta"))
+    await user.type(screen.getByLabelText("Conta"), "11111")
+    await user.click(botaoEnviar())
+    await vi.waitFor(() => expect(chaves).toHaveLength(5))
+    expect(chaves[4]).not.toBe(chaves[3])
+  })
+
+  it("mostra uma mensagem clara para o 422 e usa uma chave nova no envio seguinte", async () => {
+    const detalhe =
+      "Este pedido de portabilidade difere do que já foi enviado com a mesma chave de idempotência (8d0e7a52-3c1b-4f7e-9a39-2f4f0c1d9b11). Confira as parcelas e a conta e envie novamente."
+    const chaves: (string | null)[] = []
+    server.use(
+      http.get(agendaBen001, () => HttpResponse.json(agenda)),
+      http.post(operacoes, ({ request }) => {
+        chaves.push(request.headers.get("Idempotency-Key"))
+        return HttpResponse.json(
+          {
+            type: "about:blank",
+            title: "Chave de idempotência já usada",
+            status: 422,
+            detail: detalhe,
+          },
+          {
+            status: 422,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      })
+    )
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(detalhe)
+    await user.click(botaoEnviar())
+    await vi.waitFor(() => expect(chaves).toHaveLength(2))
+    expect(chaves[1]).not.toBe(chaves[0])
+  })
 })
+
+/** Toda tentativa de envio falha na conexão; devolve as `Idempotency-Key` recebidas, na ordem. */
+function capturarChavesComFalhaDeConexao() {
+  const chaves: (string | null)[] = []
+  server.use(
+    http.get(agendaBen001, () => HttpResponse.json(agenda)),
+    http.post(operacoes, ({ request }) => {
+      chaves.push(request.headers.get("Idempotency-Key"))
+      return HttpResponse.error()
+    })
+  )
+  return chaves
+}
 
 function selecao(parcelaId: string) {
   return screen.getByRole("checkbox", {

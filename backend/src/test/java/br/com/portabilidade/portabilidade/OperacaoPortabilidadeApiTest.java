@@ -190,8 +190,8 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.expectBody()
 				.jsonPath("$.status").isEqualTo(422)
 				.jsonPath("$.title").isEqualTo("Chave de idempotência já usada")
-				.jsonPath("$.detail").isEqualTo("A Idempotency-Key " + chave
-						+ " já foi usada com outro pedido. Gere uma chave nova para uma nova intenção.");
+				.jsonPath("$.detail").isEqualTo("Este pedido de portabilidade difere do que já foi enviado com a mesma"
+						+ " chave de idempotência (" + chave + "). Confira as parcelas e a conta e envie novamente.");
 
 		central.verify(0, anyRequestedFor(anyUrl()));
 	}
