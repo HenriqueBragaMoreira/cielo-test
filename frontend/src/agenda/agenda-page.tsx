@@ -4,16 +4,8 @@ import { Link, useLocation, useParams } from "@tanstack/react-router"
 import { ConfirmacaoAutorizacao } from "@/autorizacao/confirmacao-autorizacao"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { ErroApi } from "@/lib/api"
-import { formatarData, formatarMoeda } from "@/lib/formato"
+import { EnvioOperacaoForm } from "@/portabilidade/envio-operacao-form"
 
 import { consultarAgenda } from "./api"
 
@@ -73,36 +65,10 @@ export function AgendaPage() {
             </p>
           )}
           {!!agenda.data?.length && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Parcela</TableHead>
-                  <TableHead>Convênio</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Data de desconto</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Elegível</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {agenda.data.map((parcela) => (
-                  <TableRow key={parcela.parcelaId}>
-                    <TableCell>{parcela.parcelaId}</TableCell>
-                    <TableCell>{parcela.convenioId}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatarMoeda(parcela.valor)}
-                    </TableCell>
-                    <TableCell>{formatarData(parcela.dataDesconto)}</TableCell>
-                    <TableCell>{parcela.status}</TableCell>
-                    <TableCell className="whitespace-normal">
-                      {parcela.elegivel
-                        ? "Sim"
-                        : `Não: ${parcela.motivoInelegibilidade}`}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <EnvioOperacaoForm
+              beneficiarioId={beneficiarioId}
+              parcelas={agenda.data}
+            />
           )}
         </CardContent>
       </Card>

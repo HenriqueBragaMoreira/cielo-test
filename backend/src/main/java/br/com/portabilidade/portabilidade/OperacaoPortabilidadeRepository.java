@@ -1,0 +1,8 @@
+package br.com.portabilidade.portabilidade;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+interface OperacaoPortabilidadeRepository extends JpaRepository<OperacaoPortabilidade, UUID> {
+}
