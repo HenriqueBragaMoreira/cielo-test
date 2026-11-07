@@ -87,6 +87,25 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     )
   })
 
+  it("desabilita a parcela que já está em operação ativa e mostra o motivo", async () => {
+    const motivo =
+      "A parcela já está numa operação de portabilidade pendente ou confirmada."
+    server.use(
+      http.get(agendaBen001, () =>
+        HttpResponse.json([
+          agenda[0],
+          { ...agenda[1], elegivel: false, motivoInelegibilidade: motivo },
+        ])
+      )
+    )
+    renderApp("/beneficiarios/BEN001/agenda")
+
+    const linha = await screen.findByRole("row", { name: /P002/ })
+    expect(selecao("P002")).toHaveAttribute("aria-disabled", "true")
+    expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
+    expect(linha).toHaveTextContent(`ABERTANão: ${motivo}`)
+  })
+
   it("valida a conta e exige uma parcela antes de enviar", async () => {
     const envio = vi.fn()
     server.use(
@@ -331,6 +350,56 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     await vi.waitFor(() => expect(chaves).toHaveLength(2))
     expect(chaves[1]).not.toBe(chaves[0])
   })
+
+  it.each([
+    {
+      caso: "409 de parcela em outra operação",
+      status: 409,
+      title: "Parcela em outra operação",
+      detail:
+        "As parcelas [P001] já estão numa operação de portabilidade pendente ou confirmada. Retire-as da seleção e envie novamente.",
+    },
+    {
+      caso: "422 de parcela inelegível",
+      status: 422,
+      title: "Parcela inelegível",
+      detail:
+        "Estas parcelas não podem mais ser portadas: P002 (A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas.). Atualize a agenda e envie novamente.",
+    },
+    {
+      caso: "422 de parcela fora da agenda",
+      status: 422,
+      title: "Parcela fora da agenda",
+      detail: "As parcelas [P002] não estão na agenda do beneficiário BEN001.",
+    },
+  ])(
+    "mostra uma mensagem clara para o $caso, sem oferecer \"Tentar novamente\"",
+    async ({ status, title, detail }) => {
+      server.use(
+        http.get(agendaBen001, () => HttpResponse.json(agenda)),
+        http.post(operacoes, () =>
+          HttpResponse.json(
+            { type: "about:blank", title, status, detail },
+            {
+              status,
+              headers: { "Content-Type": "application/problem+json" },
+            }
+          )
+        )
+      )
+      const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+      await selecionarPreencherEEnviar(user)
+
+      const alerta = await screen.findByRole("alert")
+      expect(alerta).toHaveTextContent(detail)
+      expect(
+        within(alerta).queryByRole("button", { name: "Tentar novamente" })
+      ).not.toBeInTheDocument()
+      expect(selecao("P001")).toBeChecked()
+      expect(botaoEnviar()).toBeEnabled()
+    }
+  )
 })
 
 /** Toda tentativa de envio falha na conexão; devolve as `Idempotency-Key` recebidas, na ordem. */
