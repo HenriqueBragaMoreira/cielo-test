@@ -16,18 +16,18 @@ test("duplo clique no envio cria uma única operação de portabilidade", async 
   })
 
   await page.goto("/")
-  await page.getByLabel("Identificador do beneficiário").fill("BEN001")
+  await page.getByLabel("Identificador do beneficiário").fill("BEN002")
   await page
     .getByRole("checkbox", {
       name: "O beneficiário autoriza a consulta da agenda e a portabilidade das parcelas",
     })
     .check()
   await page.getByRole("button", { name: "Registrar autorização" }).click()
-  await expect(page).toHaveURL("/beneficiarios/BEN001/agenda")
+  await expect(page).toHaveURL("/beneficiarios/BEN002/agenda")
 
-  // só a P002, para não disputar a P001 com o cenário de confirmação do BEN001
+  // a P010 do BEN002: a confirmação do BEN001 trava a P001 e a P002 para sempre, e a rejeição já liberou esta
   await page
-    .getByRole("checkbox", { name: "Selecionar a parcela P002" })
+    .getByRole("checkbox", { name: "Selecionar a parcela P010" })
     .check()
   await page.getByLabel("Banco").fill("001")
   await page.getByLabel("Agência").fill("1234")
