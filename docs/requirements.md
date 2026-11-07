@@ -45,7 +45,7 @@ Requisitos do [briefing do desafio](../desafio-tecnico-fullstack-react-java-cand
 
 | ID | Item (briefing) | Interpretação adotada |
 |---|---|---|
-| E-01 | Repositório público no GitHub | `HenriqueBragaMoreira/cielo-test`, que hoje é privado e se torna público na entrega. |
+| E-01 | Repositório público no GitHub | [`HenriqueBragaMoreira/cielo-test`](https://github.com/HenriqueBragaMoreira/cielo-test), público; foi aberto antes da entrega porque o GitHub Actions do plano gratuito não roda a CI em repositório privado. |
 | E-02 | README: instruções de execução (backend, frontend e simulador) | Compose completo mais o modo de desenvolvimento. |
 | E-03 | README: decisões e porquês | Resumo com links para os ADRs. |
 | E-04 | README: bibliotecas externas e justificativas | Lista com uma linha de justificativa cada. |
