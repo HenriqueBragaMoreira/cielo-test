@@ -58,12 +58,15 @@ public class CentralClient {
 
 	/**
 	 * Consulta a operação pelo protocolo. Vazio enquanto a Central ainda decide ({@code 204}, sem corpo), que não é
-	 * falha.
+	 * falha; {@link ProtocoloNaoReconhecidoException} se ela responder {@code 404}.
 	 */
 	public Optional<DecisaoOperacao> consultarOperacao(String protocolo) {
 		var resposta = chamar(() -> restClient.get()
 				.uri("/operacoes-portabilidade/{protocolo}", protocolo)
 				.retrieve()
+				.onStatus(status -> status.isSameCodeAs(HttpStatus.NOT_FOUND), (requisicao, erro) -> {
+					throw new ProtocoloNaoReconhecidoException(protocolo);
+				})
 				.toEntity(DecisaoOperacao.class));
 		if (resposta.getStatusCode().isSameCodeAs(HttpStatus.NO_CONTENT)) {
 			return Optional.empty();

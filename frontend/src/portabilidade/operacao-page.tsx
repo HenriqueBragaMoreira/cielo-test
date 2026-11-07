@@ -5,6 +5,7 @@ import {
   CircleCheckIcon,
   CircleXIcon,
   LoaderCircleIcon,
+  TriangleAlertIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -73,6 +74,7 @@ export function OperacaoPage() {
         )}
         {operacao.data && (
           <div className="flex flex-col gap-6">
+            <AvisoAtualizacao operacao={operacao.data.operacao} />
             <SituacaoOperacao
               operacao={operacao.data.operacao}
               atualizando={operacao.isFetching}
@@ -83,6 +85,24 @@ export function OperacaoPage() {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/** A última consulta não trouxe o status atual da Central; o polling continua enquanto a operação está PENDENTE. */
+function AvisoAtualizacao({ operacao }: { operacao: Operacao }) {
+  if (!operacao.avisoAtualizacao) return null
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2 rounded-lg border border-amber-600/50 p-3 text-sm text-amber-700 dark:text-amber-400"
+    >
+      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <p>
+        {operacao.avisoAtualizacao === "FALHA_NA_ATUALIZACAO"
+          ? "Não foi possível atualizar o status da operação; tentando novamente."
+          : `A Central de Convênios não reconhece mais o protocolo ${operacao.protocolo}. A operação continua pendente, mas o status pode não ser atualizado.`}
+      </p>
+    </div>
   )
 }
 

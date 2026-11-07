@@ -27,7 +27,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.notFound;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.serviceUnavailable;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.serviceUnavailable;
@@ -622,6 +624,54 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.exchange()
 				.expectBody()
 				.jsonPath("$.status").isEqualTo("PENDENTE")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
+	}
+
+	@Test
+	void centralIndisponivelNaConsultaContinuaPendenteComAvisoDeFalhaNaAtualizacao() {
+		var id = operacaoPendente("prot-1");
+		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(serviceUnavailable()));
+
+		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO");
+	}
+
+	@Test
+	void timeoutNaConsultaContinuaPendenteComAvisoDeFalhaNaAtualizacao() {
+		var id = operacaoPendente("prot-1");
+		// além do read-timeout de 1 s dos testes
+		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(okJson("""
+				{ "status": "CONFIRMADA", "motivoRejeicao": null }""").withFixedDelay(2_000)));
+
+		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO");
+	}
+
+	@Test
+	void protocoloNaoReconhecidoPelaCentralContinuaPendenteComAvisoExplicito() {
+		var id = operacaoPendente("prot-1");
+		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(notFound()));
+
+		esperarPendenteComAviso(id, "PROTOCOLO_NAO_RECONHECIDO");
+	}
+
+	/** Sem evento novo nem mudança de estado, e com {@code Retry-After} para o cliente seguir consultando. */
+	private void esperarPendenteComAviso(String id, String aviso) {
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectHeader().valueEquals("Retry-After", "2")
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("PENDENTE")
+				.jsonPath("$.protocolo").isEqualTo("prot-1")
+				.jsonPath("$.avisoAtualizacao").isEqualTo(aviso)
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
+
+		// a falha não ficou gravada: quando a Central volta a responder, o aviso some
+		centralAindaDecide("prot-1");
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("PENDENTE")
+				.jsonPath("$.avisoAtualizacao").isEmpty()
 				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
 	}
 

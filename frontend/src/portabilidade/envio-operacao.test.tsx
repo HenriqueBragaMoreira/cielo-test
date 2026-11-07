@@ -56,6 +56,7 @@ const operacaoPendente: Operacao = {
     { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
     { tipo: "ENVIADA", dataHora: "2026-11-06T13:46:00Z", detalhe: null },
   ],
+  avisoAtualizacao: null,
 }
 
 describe("enviar uma operação de portabilidade a partir da agenda", () => {

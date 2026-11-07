@@ -6,10 +6,11 @@ import br.com.portabilidade.autorizacao.Autorizacao;
 import br.com.portabilidade.autorizacao.AutorizacaoService;
 import br.com.portabilidade.central.CentralClient;
 import br.com.portabilidade.central.CentralIndisponivelException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import br.com.portabilidade.central.ProtocoloNaoReconhecidoException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -138,12 +139,17 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 
 	/**
 	 * Acompanhamento (ADR-0008): uma operação {@code PENDENTE} consulta a Central a cada leitura e, se ela já decidiu,
-	 * registra a transição e o evento final. Uma operação em estado final não consulta a Central de novo.
+	 * registra a transição e o evento final. Uma operação em estado final não consulta a Central de novo. Se a Central
+	 * não responder ou não reconhecer o protocolo, a operação continua {@code PENDENTE}, sem evento, e a resposta leva o
+	 * {@link AvisoAtualizacao} (ADR-0007).
 	 */
 	@Transactional
 	Operacao consultar(UUID id) {
 		var operacao = repository.findById(id).orElseThrow(() -> new OperacaoNaoEncontradaException(id));
-		if (operacao.getStatus() == StatusOperacao.PENDENTE) {
+		if (operacao.getStatus() != StatusOperacao.PENDENTE) {
+			return Operacao.de(operacao);
+		}
+		try {
 			central.consultarOperacao(operacao.getProtocolo()).ifPresent(decisao -> {
 				// atualização condicional (ADR-0007): relê a linha travada e só decide se ela ainda estiver PENDENTE,
 				// para consultas concorrentes registrarem a transição e o evento final uma única vez
@@ -152,8 +158,16 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 					operacao.registrarDecisao(StatusOperacao.valueOf(decisao.status()), decisao.motivoRejeicao());
 				}
 			});
+			return Operacao.de(operacao);
 		}
-		return Operacao.de(operacao);
+		catch (CentralIndisponivelException e) {
+			log.warn("Não foi possível atualizar a operação {}: {}", id, e.getCause().toString());
+			return Operacao.de(operacao, AvisoAtualizacao.FALHA_NA_ATUALIZACAO);
+		}
+		catch (ProtocoloNaoReconhecidoException e) {
+			log.warn("Operação {}: {}", id, e.getMessage());
+			return Operacao.de(operacao, AvisoAtualizacao.PROTOCOLO_NAO_RECONHECIDO);
+		}
 	}
 
 	@Override
@@ -196,14 +210,21 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		}
 	}
 
+	/** {@code avisoAtualizacao} é nulo, exceto quando a consulta à Central falhou (ver {@link #consultar}). */
 	record Operacao(UUID id, String beneficiarioId, StatusOperacao status, String protocolo, String motivoRejeicao,
-			List<ParcelaOperacao> parcelas, ContaDestino contaDestino, List<Evento> eventos) {
+			List<ParcelaOperacao> parcelas, ContaDestino contaDestino, List<Evento> eventos,
+			AvisoAtualizacao avisoAtualizacao) {
 
 		static Operacao de(OperacaoPortabilidade operacao) {
+			return de(operacao, null);
+		}
+
+		static Operacao de(OperacaoPortabilidade operacao, AvisoAtualizacao aviso) {
 			return new Operacao(operacao.getId(), operacao.getBeneficiarioId(), operacao.getStatus(),
 					operacao.getProtocolo(), operacao.getMotivoRejeicao(), List.copyOf(operacao.getParcelas()),
 					operacao.getContaDestino(),
-					operacao.getEventos().stream().map(e -> new Evento(e.getTipo(), e.getDataHora(), e.getDetalhe())).toList());
+					operacao.getEventos().stream().map(e -> new Evento(e.getTipo(), e.getDataHora(), e.getDetalhe())).toList(),
+					aviso);
 		}
 
 	}
