@@ -6,6 +6,8 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router"
 
+import { AgendaPage } from "@/agenda/agenda-page"
+import type { RegistroAutorizacao } from "@/autorizacao/api"
 import { AutorizacaoPage } from "@/autorizacao/autorizacao-page"
 
 const rootRoute = createRootRoute({
@@ -25,7 +27,13 @@ const autorizacaoRoute = createRoute({
   component: AutorizacaoPage,
 })
 
-const routeTree = rootRoute.addChildren([autorizacaoRoute])
+const agendaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/beneficiarios/$beneficiarioId/agenda",
+  component: AgendaPage,
+})
+
+const routeTree = rootRoute.addChildren([autorizacaoRoute, agendaRoute])
 
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({ routeTree, history })
@@ -34,5 +42,9 @@ export function createAppRouter(history?: RouterHistory) {
 declare module "@tanstack/react-router" {
   interface Register {
     router: ReturnType<typeof createAppRouter>
+  }
+  interface HistoryState {
+    /** A autorização recém-registrada, para a agenda mostrar a confirmação. */
+    registroAutorizacao?: RegistroAutorizacao
   }
 }

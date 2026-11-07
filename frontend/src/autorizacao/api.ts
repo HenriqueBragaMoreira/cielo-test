@@ -6,6 +6,10 @@ export type Autorizacao = {
   autorizadaEm: string
 }
 
+export type RegistroAutorizacao = Awaited<
+  ReturnType<typeof registrarAutorizacao>
+>
+
 /** `nova` distingue a autorização registrada agora (201) da que já existia (200). */
 export async function registrarAutorizacao(beneficiarioId: string) {
   const resposta = await fetch("/api/autorizacoes", {

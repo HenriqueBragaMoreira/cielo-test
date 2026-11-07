@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 
@@ -8,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { formatarDataHora } from "@/lib/formato"
 
 import { registrarAutorizacao } from "./api"
 
@@ -25,9 +25,18 @@ export function AutorizacaoPage() {
     mode: "onChange",
     defaultValues: { beneficiarioId: "", aceite: false },
   })
+  const navigate = useNavigate()
   const registro = useMutation({
     mutationFn: (dados: Formulario) =>
       registrarAutorizacao(dados.beneficiarioId.trim()),
+    onSuccess: (registroAutorizacao) =>
+      navigate({
+        to: "/beneficiarios/$beneficiarioId/agenda",
+        params: {
+          beneficiarioId: registroAutorizacao.autorizacao.beneficiarioId,
+        },
+        state: { registroAutorizacao },
+      }),
   })
 
   return (
@@ -82,23 +91,6 @@ export function AutorizacaoPage() {
           >
             {registro.error.message}
           </p>
-        )}
-        {registro.data && (
-          <div
-            role="status"
-            className="mt-4 flex flex-col gap-1 rounded-lg border p-3 text-sm"
-          >
-            <p>
-              {registro.data.nova
-                ? `Autorização do beneficiário ${registro.data.autorizacao.beneficiarioId} registrada em`
-                : `O beneficiário ${registro.data.autorizacao.beneficiarioId} já tinha uma autorização registrada em`}{" "}
-              {formatarDataHora(registro.data.autorizacao.autorizadaEm)}.
-            </p>
-            <p className="text-muted-foreground">
-              Identificador na Central:{" "}
-              {registro.data.autorizacao.autorizacaoId}
-            </p>
-          </div>
         )}
       </CardContent>
     </Card>

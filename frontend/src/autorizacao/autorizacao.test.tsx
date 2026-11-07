@@ -67,6 +67,32 @@ describe("registrar a autorização", () => {
     expect(confirmacao).toHaveTextContent("Identificador na Central: aut-123")
   })
 
+  it("leva para a agenda do beneficiário depois de registrar a autorização", async () => {
+    server.use(
+      http.post("/api/autorizacoes", () =>
+        HttpResponse.json(
+          {
+            beneficiarioId: "BEN001",
+            autorizacaoId: "aut-123",
+            autorizadaEm: "2026-11-06T13:45:00Z",
+          },
+          { status: 201 }
+        )
+      ),
+      http.get("/api/beneficiarios/BEN001/agenda", () => HttpResponse.json([]))
+    )
+    const { user, router } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Agenda do beneficiário BEN001",
+      })
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe("/beneficiarios/BEN001/agenda")
+  })
+
   it("mostra a autorização existente como já registrada", async () => {
     server.use(
       http.post("/api/autorizacoes", () =>
