@@ -9,6 +9,7 @@ import {
 import { AgendaPage } from "@/agenda/agenda-page"
 import type { RegistroAutorizacao } from "@/autorizacao/api"
 import { AutorizacaoPage } from "@/autorizacao/autorizacao-page"
+import { OperacaoPage } from "@/portabilidade/operacao-page"
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -33,7 +34,17 @@ const agendaRoute = createRoute({
   component: AgendaPage,
 })
 
-const routeTree = rootRoute.addChildren([autorizacaoRoute, agendaRoute])
+const operacaoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/operacoes-portabilidade/$operacaoId",
+  component: OperacaoPage,
+})
+
+const routeTree = rootRoute.addChildren([
+  autorizacaoRoute,
+  agendaRoute,
+  operacaoRoute,
+])
 
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({ routeTree, history })
