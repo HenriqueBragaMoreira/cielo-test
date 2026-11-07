@@ -87,6 +87,11 @@ class OperacaoPortabilidade {
 		registrar(TipoEvento.ENVIADA, null);
 	}
 
+	/** O pedido tem o mesmo corpo do que criou esta operação, ou seja, é a mesma intenção (ADR-0005). */
+	boolean mesmaIntencao(String hashCorpo) {
+		return this.hashCorpo.equals(hashCorpo);
+	}
+
 	private void registrar(TipoEvento tipo, String detalhe) {
 		var instante = agora();
 		atualizadaEm = instante;
