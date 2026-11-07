@@ -97,7 +97,7 @@ describe("tela da operação", () => {
     )
   })
 
-  it("mostra a falha no envio na linha do tempo", async () => {
+  it("mostra a falha no envio, com as parcelas liberadas, e a falha na linha do tempo", async () => {
     const operacao: Operacao = {
       id,
       beneficiarioId: "BEN001",
@@ -123,8 +123,11 @@ describe("tela da operação", () => {
     )
     renderApp(`/operacoes-portabilidade/${id}`)
 
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Falha no envioA Central de Convênios não respondeu e a operação não foi enviada. As parcelas ficaram liberadas."
+    )
     const linhaDoTempo = within(
-      await screen.findByRole("list", { name: "Linha do tempo" })
+      screen.getByRole("list", { name: "Linha do tempo" })
     ).getAllByRole("listitem")
     expect(linhaDoTempo).toHaveLength(2)
     expect(linhaDoTempo[0]).toHaveTextContent("Solicitada06/11/2026 às 10:45")
