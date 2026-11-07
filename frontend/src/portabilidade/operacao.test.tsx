@@ -97,6 +97,45 @@ describe("tela da operação", () => {
     )
   })
 
+  it("mostra a falha no envio, com as parcelas liberadas, e a falha na linha do tempo", async () => {
+    const operacao: Operacao = {
+      id,
+      beneficiarioId: "BEN001",
+      status: "FALHA_ENVIO",
+      protocolo: null,
+      motivoRejeicao: null,
+      parcelas: [{ parcelaId: "P001", valor: 150.5 }],
+      contaDestino: {
+        banco: "001",
+        agencia: "1234",
+        conta: "56789",
+        digito: "0",
+      },
+      eventos: [
+        { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
+        { tipo: "FALHA_ENVIO", dataHora: "2026-11-06T13:45:05Z", detalhe: null },
+      ],
+    }
+    server.use(
+      http.get(`/api/operacoes-portabilidade/${id}`, () =>
+        HttpResponse.json(operacao)
+      )
+    )
+    renderApp(`/operacoes-portabilidade/${id}`)
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Falha no envioA Central de Convênios não respondeu e a operação não foi enviada. As parcelas ficaram liberadas."
+    )
+    const linhaDoTempo = within(
+      screen.getByRole("list", { name: "Linha do tempo" })
+    ).getAllByRole("listitem")
+    expect(linhaDoTempo).toHaveLength(2)
+    expect(linhaDoTempo[0]).toHaveTextContent("Solicitada06/11/2026 às 10:45")
+    expect(linhaDoTempo[1]).toHaveTextContent(
+      "Falha no envio06/11/2026 às 10:45"
+    )
+  })
+
   it("mostra a mensagem quando a operação não existe", async () => {
     server.use(
       http.get(url, () =>

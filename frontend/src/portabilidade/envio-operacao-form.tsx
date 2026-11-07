@@ -1,12 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { useRef, type ComponentProps } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
 import type { Parcela } from "@/agenda/api"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -84,6 +84,9 @@ export function EnvioOperacaoForm({
       }),
   })
   const erros = form.formState.errors
+  const erroEnvio = envio.error instanceof ErroApi ? envio.error : undefined
+  // sem resposta ou Central indisponível: reenviar o mesmo pedido, com a mesma chave, pode dar certo (ADR-0005)
+  const podeTentarDeNovo = erroEnvio?.status === 0 || erroEnvio?.status === 503
 
   return (
     <form
@@ -191,12 +194,35 @@ export function EnvioOperacaoForm({
         Enviar portabilidade
       </Button>
       {envio.error && (
-        <p
+        <div
           role="alert"
-          className="rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
+          className="flex flex-col items-start gap-3 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
         >
-          {envio.error.message}
-        </p>
+          <p>{envio.error.message}</p>
+          {(podeTentarDeNovo || erroEnvio?.id) && (
+            <div className="flex flex-wrap gap-2">
+              {podeTentarDeNovo && envio.variables && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={envio.isPending}
+                  onClick={() => envio.mutate(envio.variables)}
+                >
+                  Tentar novamente
+                </Button>
+              )}
+              {erroEnvio?.id && (
+                <Link
+                  to="/operacoes-portabilidade/$operacaoId"
+                  params={{ operacaoId: erroEnvio.id }}
+                  className={buttonVariants({ variant: "link" })}
+                >
+                  Ver a operação
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </form>
   )
