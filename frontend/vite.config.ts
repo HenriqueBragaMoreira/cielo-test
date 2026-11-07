@@ -17,6 +17,8 @@ export default defineConfig({
     proxy: { "/api": "http://localhost:8080" },
   },
   test: {
+    // e2e/ é do Playwright (pnpm e2e)
+    include: ["src/**/*.test.{ts,tsx}"],
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
   },
