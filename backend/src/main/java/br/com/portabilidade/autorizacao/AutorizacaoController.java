@@ -2,6 +2,7 @@ package br.com.portabilidade.autorizacao;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,7 +31,13 @@ class AutorizacaoController {
 				.body(new AutorizacaoResponse(autorizacao.getBeneficiarioId(), autorizacao.getAutorizacaoId(), autorizacao.getAutorizadaEm()));
 	}
 
-	record AutorizacaoRequest(@NotBlank String beneficiarioId) {
+	/** O tamanho máximo é o da coluna; os espaços das pontas saem antes da validação. */
+	record AutorizacaoRequest(@NotBlank @Size(max = 100) String beneficiarioId) {
+
+		AutorizacaoRequest {
+			beneficiarioId = beneficiarioId == null ? null : beneficiarioId.strip();
+		}
+
 	}
 
 	record AutorizacaoResponse(String beneficiarioId, String autorizacaoId, Instant autorizadaEm) {

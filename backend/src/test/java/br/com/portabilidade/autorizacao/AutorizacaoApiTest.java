@@ -128,6 +128,32 @@ class AutorizacaoApiTest extends ApiTest {
 	}
 
 	@Test
+	void beneficiarioIdComMaisDe100CaracteresRespondeProblemDetailSemChamarACentral() {
+		registrar("B".repeat(101))
+				.expectStatus().isBadRequest()
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.title").isEqualTo("Requisição inválida");
+
+		central.verify(0, postRequestedFor(urlEqualTo("/autorizacoes")));
+	}
+
+	@Test
+	void beneficiarioIdComEspacosNasPontasEhRegistradoSemEles() {
+		central.stubFor(post("/autorizacoes").willReturn(okJson("""
+				{ "autorizacaoId": "aut-123" }""").withStatus(201)));
+
+		registrar(" BEN001 ")
+				.expectStatus().isCreated()
+				.expectBody().jsonPath("$.beneficiarioId").isEqualTo("BEN001");
+		registrar("BEN001").expectStatus().isOk();
+
+		central.verify(1, postRequestedFor(urlEqualTo("/autorizacoes"))
+				.withRequestBody(equalToJson("""
+						{ "beneficiarioId": "BEN001" }""")));
+	}
+
+	@Test
 	void erroInesperadoRespondeProblemDetail() {
 		central.stubFor(post("/autorizacoes").willReturn(badRequest()));
 
