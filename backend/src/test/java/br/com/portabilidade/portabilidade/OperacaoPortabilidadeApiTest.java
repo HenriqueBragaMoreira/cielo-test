@@ -592,6 +592,23 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 	}
 
 	@Test
+	void motivoDeRejeicaoLongoFicaGravadoInteiro() {
+		var id = operacaoPendente("prot-1");
+		// a Central não limita o tamanho do motivo
+		var motivo = "Motivo extenso. ".repeat(100);
+		centralDecide("prot-1", """
+				{ "status": "REJEITADA", "motivoRejeicao": "%s" }""".formatted(motivo));
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("REJEITADA")
+				.jsonPath("$.motivoRejeicao").isEqualTo(motivo)
+				.jsonPath("$.eventos[2].detalhe").isEqualTo(motivo);
+	}
+
+	@Test
 	void consultasConcorrentesRegistramOEventoFinalUmaVezSo() throws Exception {
 		var id = operacaoPendente("prot-1");
 		// a demora faz todas as consultas lerem PENDENTE antes de qualquer uma registrar a decisão
