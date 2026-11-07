@@ -81,10 +81,22 @@ class OperacaoPortabilidade {
 		return operacao;
 	}
 
-	/** A Central aceitou o envio e atribuiu o protocolo. */
+	/** A Central aceitou o envio, ou o reenvio a partir de FALHA_ENVIO, e atribuiu o protocolo. */
 	void registrarEnvio(String protocolo) {
 		this.protocolo = protocolo;
+		status = StatusOperacao.PENDENTE;
 		registrar(TipoEvento.ENVIADA, null);
+	}
+
+	/** A Central não respondeu ao envio: a operação pode ser reenviada e libera as parcelas (ADR-0007). */
+	void registrarFalhaEnvio() {
+		status = StatusOperacao.FALHA_ENVIO;
+		registrar(TipoEvento.FALHA_ENVIO, null);
+	}
+
+	/** Só uma operação em FALHA_ENVIO é reenviada à Central; nos outros estados, o reenvio só a devolve (ADR-0005). */
+	boolean aguardaReenvio() {
+		return status == StatusOperacao.FALHA_ENVIO;
 	}
 
 	/** O pedido tem o mesmo corpo do que criou esta operação, ou seja, é a mesma intenção (ADR-0005). */
