@@ -44,6 +44,16 @@ public class CentralClient {
 				}));
 	}
 
+	/** Envia a operação de portabilidade à Central e devolve o protocolo atribuído por ela. */
+	public String enviarOperacao(EnvioOperacao envio) {
+		return chamar(() -> restClient.post()
+				.uri("/operacoes-portabilidade")
+				.body(envio)
+				.retrieve()
+				.body(EnvioOperacaoResponse.class))
+				.protocolo();
+	}
+
 	/**
 	 * Traduz conexão recusada, timeout ({@link ResourceAccessException}) e 5xx em {@link CentralIndisponivelException};
 	 * qualquer outra falha da chamada (4xx, corpo ilegível ou vazio) em {@link FalhaNaIntegracaoException}.
@@ -64,6 +74,23 @@ public class CentralClient {
 	}
 
 	public record Parcela(String parcelaId, String convenioId, BigDecimal valor, LocalDate dataDesconto, String status) {
+	}
+
+	public record EnvioOperacao(String beneficiarioId, String autorizacaoId, List<String> parcelaIds,
+			ContaDestino contaDestino) {
+	}
+
+	public record ContaDestino(String banco, String agencia, String conta, String digito) {
+	}
+
+	private record EnvioOperacaoResponse(String protocolo) {
+
+		EnvioOperacaoResponse {
+			if (protocolo == null) {
+				throw new IllegalArgumentException("Resposta da Central sem protocolo");
+			}
+		}
+
 	}
 
 	private record AutorizacaoRequest(String beneficiarioId) {

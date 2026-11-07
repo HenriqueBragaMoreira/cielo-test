@@ -37,10 +37,9 @@ public class AutorizacaoService {
 	}
 
 	/** Dados do beneficiário só saem da plataforma com a autorização dele registrada aqui. */
-	public void exigirAutorizacao(String beneficiarioId) {
-		if (!repository.existsById(beneficiarioId)) {
-			throw new BeneficiarioSemAutorizacaoException(beneficiarioId);
-		}
+	public Autorizacao exigirAutorizacao(String beneficiarioId) {
+		return repository.findById(beneficiarioId)
+				.orElseThrow(() -> new BeneficiarioSemAutorizacaoException(beneficiarioId));
 	}
 
 	record Registro(Autorizacao autorizacao, boolean nova) {

@@ -27,7 +27,7 @@ class AgendaApiTest extends ApiTest {
 				.jsonPath("$.status").isEqualTo(403)
 				.jsonPath("$.title").isEqualTo("Beneficiário sem autorização")
 				.jsonPath("$.detail").isEqualTo(
-						"O beneficiário BEN001 não tem autorização registrada. Registre a autorização antes de consultar a agenda.");
+						"O beneficiário BEN001 não tem autorização registrada. Registre a autorização antes de consultar a agenda ou portar parcelas.");
 
 		central.verify(0, anyRequestedFor(anyUrl()));
 	}
