@@ -6,6 +6,7 @@ import br.com.portabilidade.autorizacao.Autorizacao;
 import br.com.portabilidade.autorizacao.AutorizacaoService;
 import br.com.portabilidade.central.CentralClient;
 import br.com.portabilidade.central.CentralIndisponivelException;
+import br.com.portabilidade.central.FalhaNaIntegracaoException;
 import br.com.portabilidade.central.ProtocoloNaoReconhecidoException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -147,8 +148,8 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 	/**
 	 * Acompanhamento (ADR-0008): uma operação {@code PENDENTE} consulta a Central a cada leitura e, se ela já decidiu,
 	 * registra a transição e o evento final. Uma operação em estado final não consulta a Central de novo. Se a Central
-	 * não responder ou não reconhecer o protocolo, a operação continua {@code PENDENTE}, sem evento, e a resposta leva o
-	 * {@link AvisoAtualizacao} (ADR-0007).
+	 * não responder, responder fora do contrato ou não reconhecer o protocolo, a operação continua {@code PENDENTE}, sem
+	 * evento, e a resposta leva o {@link AvisoAtualizacao} (ADR-0007).
 	 */
 	@Transactional
 	Operacao consultar(UUID id) {
@@ -169,6 +170,11 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		}
 		catch (CentralIndisponivelException e) {
 			log.warn("Não foi possível atualizar a operação {}: {}", id, e.getCause().toString());
+			return Operacao.de(operacao, AvisoAtualizacao.FALHA_NA_ATUALIZACAO);
+		}
+		catch (FalhaNaIntegracaoException e) {
+			// resposta fora do contrato: status desconhecido, corpo ilegível ou 4xx que não é 404
+			log.warn("Não foi possível atualizar a operação {}: {}", id, e.getMessage(), e);
 			return Operacao.de(operacao, AvisoAtualizacao.FALHA_NA_ATUALIZACAO);
 		}
 		catch (ProtocoloNaoReconhecidoException e) {
