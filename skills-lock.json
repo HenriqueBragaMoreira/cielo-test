@@ -1,11 +1,29 @@
 {
   "version": 1,
   "skills": {
+    "clean-code": {
+      "source": "fellipeutaka/leon",
+      "sourceType": "github",
+      "skillPath": "skills/clean-code/SKILL.md",
+      "computedHash": "0495981e3dd65322e266104204061b628b9fe56f628140a097f1fc29b1708bec"
+    },
+    "design-patterns": {
+      "source": "fellipeutaka/leon",
+      "sourceType": "github",
+      "skillPath": "skills/design-patterns/SKILL.md",
+      "computedHash": "a8fc3f22b3b4b940e500ec851e5a864def00547c8b97a78f3419f693ed53648f"
+    },
     "pr": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/pr/SKILL.md",
       "computedHash": "e6e63bada1f038e0b5488f8b62f77ebbd36c97669ddc5afaffcd17f974709f9a"
+    },
+    "solid": {
+      "source": "fellipeutaka/leon",
+      "sourceType": "github",
+      "skillPath": "skills/solid/SKILL.md",
+      "computedHash": "93e1f8afbe17acfeef5c69fbc033b5982b76240bb18364b5e1335d00c016031f"
     },
     "tdd": {
       "source": "mattpocock/skills",
