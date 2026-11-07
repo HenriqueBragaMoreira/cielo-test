@@ -115,15 +115,6 @@ class AutorizacaoApiTest extends ApiTest {
 				.jsonPath("$.detail").isEqualTo("Não foi possível concluir a requisição. Tente novamente mais tarde.");
 	}
 
-	private static void esperarCentralIndisponivel(RestTestClient.ResponseSpec resposta) {
-		resposta.expectStatus().isEqualTo(503)
-				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
-				.expectBody()
-				.jsonPath("$.status").isEqualTo(503)
-				.jsonPath("$.title").isEqualTo("Central de Convênios indisponível")
-				.jsonPath("$.detail").isEqualTo("A Central de Convênios não respondeu. Tente novamente mais tarde.");
-	}
-
 	private RestTestClient.ResponseSpec registrar(String beneficiarioId) {
 		return api.post().uri("/api/autorizacoes")
 				.contentType(MediaType.APPLICATION_JSON)

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -62,6 +63,16 @@ public abstract class ApiTest {
 
 	@Autowired
 	private JdbcClient jdbc;
+
+	/** A resposta é o {@code 503} {@code problem+json} de "Central de Convênios indisponível". */
+	protected static void esperarCentralIndisponivel(RestTestClient.ResponseSpec resposta) {
+		resposta.expectStatus().isEqualTo(503)
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.status").isEqualTo(503)
+				.jsonPath("$.title").isEqualTo("Central de Convênios indisponível")
+				.jsonPath("$.detail").isEqualTo("A Central de Convênios não respondeu. Tente novamente mais tarde.");
+	}
 
 	@BeforeEach
 	void reiniciarEstado() {

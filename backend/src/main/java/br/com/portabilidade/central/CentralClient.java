@@ -1,11 +1,15 @@
 package br.com.portabilidade.central;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.function.Supplier;
 
 /** Único adaptador HTTP para a Central de Convênios (ADR-0002). */
@@ -30,6 +34,15 @@ public class CentralClient {
 				.autorizacaoId());
 	}
 
+	/** Parcelas futuras do beneficiário, como a Central as informa. */
+	public List<Parcela> consultarAgenda(String beneficiarioId) {
+		return chamar(() -> restClient.get()
+				.uri("/beneficiarios/{beneficiarioId}/agenda", beneficiarioId)
+				.retrieve()
+				.body(new ParameterizedTypeReference<List<Parcela>>() {
+				}));
+	}
+
 	/** Traduz conexão recusada, timeout ({@link ResourceAccessException}) e 5xx em {@link CentralIndisponivelException}. */
 	private static <T> T chamar(Supplier<T> chamada) {
 		try {
@@ -37,6 +50,9 @@ public class CentralClient {
 		} catch (ResourceAccessException | HttpServerErrorException e) {
 			throw new CentralIndisponivelException(e);
 		}
+	}
+
+	public record Parcela(String parcelaId, String convenioId, BigDecimal valor, LocalDate dataDesconto, String status) {
 	}
 
 	private record AutorizacaoRequest(String beneficiarioId) {

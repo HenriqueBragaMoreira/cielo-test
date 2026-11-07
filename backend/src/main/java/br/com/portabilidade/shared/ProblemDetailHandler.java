@@ -1,5 +1,6 @@
 package br.com.portabilidade.shared;
 
+import br.com.portabilidade.agenda.BeneficiarioSemAutorizacaoException;
 import br.com.portabilidade.central.CentralIndisponivelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,14 @@ class ProblemDetailHandler extends ResponseEntityExceptionHandler {
 		var problema = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
 				"A Central de Convênios não respondeu. Tente novamente mais tarde.");
 		problema.setTitle("Central de Convênios indisponível");
+		return problema;
+	}
+
+	@ExceptionHandler
+	ProblemDetail beneficiarioSemAutorizacao(BeneficiarioSemAutorizacaoException e) {
+		var problema = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "O beneficiário " + e.getBeneficiarioId()
+				+ " não tem autorização registrada. Registre a autorização antes de consultar a agenda.");
+		problema.setTitle("Beneficiário sem autorização");
 		return problema;
 	}
 
