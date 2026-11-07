@@ -18,17 +18,18 @@ const schema = z.object({
 })
 
 type Formulario = z.input<typeof schema>
+type DadosValidados = z.output<typeof schema>
 
 export function AutorizacaoPage() {
-  const form = useForm<Formulario>({
+  const form = useForm<Formulario, unknown, DadosValidados>({
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: { beneficiarioId: "", aceite: false },
   })
   const navigate = useNavigate()
   const registro = useMutation({
-    mutationFn: (dados: Formulario) =>
-      registrarAutorizacao(dados.beneficiarioId.trim()),
+    mutationFn: (dados: DadosValidados) =>
+      registrarAutorizacao(dados.beneficiarioId),
     onSuccess: (registroAutorizacao) =>
       navigate({
         to: "/beneficiarios/$beneficiarioId/agenda",

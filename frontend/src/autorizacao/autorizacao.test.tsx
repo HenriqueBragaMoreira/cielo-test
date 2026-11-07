@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react"
 import { delay, http, HttpResponse } from "msw"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { renderApp } from "@/test/render-app"
 import { server } from "@/test/server"
@@ -65,6 +65,23 @@ describe("registrar a autorização", () => {
       "Autorização do beneficiário BEN001 registrada em 06/11/2026 às 10:45."
     )
     expect(confirmacao).toHaveTextContent("Identificador na Central: aut-123")
+  })
+
+  it("envia o identificador sem os espaços das pontas", async () => {
+    let enviado: unknown
+    server.use(
+      http.post("/api/autorizacoes", async ({ request }) => {
+        enviado = await request.json()
+        return delay("infinite")
+      })
+    )
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "  BEN001 ")
+
+    await vi.waitFor(() =>
+      expect(enviado).toEqual({ beneficiarioId: "BEN001" })
+    )
   })
 
   it("leva para a agenda do beneficiário depois de registrar a autorização", async () => {
