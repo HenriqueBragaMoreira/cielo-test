@@ -8,6 +8,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 import java.util.Map;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -87,6 +88,14 @@ class AgendaApiTest extends ApiTest {
 		central.stubFor(get("/beneficiarios/BEN001/agenda").willReturn(okJson("[]").withFixedDelay(2_000)));
 
 		esperarCentralIndisponivel(consultarAgenda("BEN001"));
+	}
+
+	@Test
+	void respostaDaCentralSemCorpoDaFalhaNaIntegracao() {
+		autorizar("BEN001");
+		central.stubFor(get("/beneficiarios/BEN001/agenda").willReturn(aResponse().withStatus(200)));
+
+		esperarFalhaNaIntegracao(consultarAgenda("BEN001"));
 	}
 
 	private void autorizar(String beneficiarioId) {

@@ -12,12 +12,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.badRequest;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.serviceUnavailable;
+import static com.github.tomakehurst.wiremock.client.WireMock.unauthorized;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -154,8 +155,39 @@ class AutorizacaoApiTest extends ApiTest {
 	}
 
 	@Test
+	void centralRecusandoARequisicaoDaFalhaNaIntegracao() {
+		central.stubFor(post("/autorizacoes").willReturn(unauthorized()));
+
+		esperarFalhaNaIntegracao(registrar("BEN001"));
+	}
+
+	@Test
+	void respostaDaCentralQueNaoEhJsonDaFalhaNaIntegracao() {
+		central.stubFor(post("/autorizacoes").willReturn(aResponse().withStatus(201)
+				.withHeader("Content-Type", "application/json").withBody("<html>")));
+
+		esperarFalhaNaIntegracao(registrar("BEN001"));
+	}
+
+	@Test
+	void respostaDaCentralSemCorpoDaFalhaNaIntegracao() {
+		central.stubFor(post("/autorizacoes").willReturn(aResponse().withStatus(201)));
+
+		esperarFalhaNaIntegracao(registrar("BEN001"));
+	}
+
+	@Test
+	void respostaDaCentralSemAutorizacaoIdDaFalhaNaIntegracao() {
+		central.stubFor(post("/autorizacoes").willReturn(okJson("{}").withStatus(201)));
+
+		esperarFalhaNaIntegracao(registrar("BEN001"));
+	}
+
+	@Test
 	void erroInesperadoRespondeProblemDetail() {
-		central.stubFor(post("/autorizacoes").willReturn(badRequest()));
+		// um autorizacaoId maior que a coluna faz o INSERT falhar
+		central.stubFor(post("/autorizacoes").willReturn(okJson("""
+				{ "autorizacaoId": "%s" }""".formatted("a".repeat(101))).withStatus(201)));
 
 		registrar("BEN001")
 				.expectStatus().isEqualTo(500)

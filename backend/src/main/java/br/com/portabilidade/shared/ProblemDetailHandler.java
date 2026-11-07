@@ -2,6 +2,7 @@ package br.com.portabilidade.shared;
 
 import br.com.portabilidade.agenda.BeneficiarioSemAutorizacaoException;
 import br.com.portabilidade.central.CentralIndisponivelException;
+import br.com.portabilidade.central.FalhaNaIntegracaoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,15 @@ class ProblemDetailHandler extends ResponseEntityExceptionHandler {
 		var problema = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
 				"A Central de Convênios não respondeu. Tente novamente mais tarde.");
 		problema.setTitle("Central de Convênios indisponível");
+		return problema;
+	}
+
+	@ExceptionHandler
+	ProblemDetail falhaNaIntegracao(FalhaNaIntegracaoException e) {
+		log.error("Falha na integração com a Central de Convênios", e);
+		var problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
+				"A Central de Convênios deu uma resposta inesperada. Tente novamente mais tarde.");
+		problema.setTitle("Falha na integração com a Central de Convênios");
 		return problema;
 	}
 

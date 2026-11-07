@@ -74,6 +74,16 @@ public abstract class ApiTest {
 				.jsonPath("$.detail").isEqualTo("A Central de Convênios não respondeu. Tente novamente mais tarde.");
 	}
 
+	/** A resposta é o {@code 502} {@code problem+json} de "Falha na integração com a Central de Convênios". */
+	protected static void esperarFalhaNaIntegracao(RestTestClient.ResponseSpec resposta) {
+		resposta.expectStatus().isEqualTo(502)
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.status").isEqualTo(502)
+				.jsonPath("$.title").isEqualTo("Falha na integração com a Central de Convênios")
+				.jsonPath("$.detail").isEqualTo("A Central de Convênios deu uma resposta inesperada. Tente novamente mais tarde.");
+	}
+
 	@BeforeEach
 	void reiniciarEstado() {
 		central.resetAll();

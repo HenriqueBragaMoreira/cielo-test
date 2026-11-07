@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,8 +31,8 @@ public class CentralClient {
 				.uri("/autorizacoes")
 				.body(new AutorizacaoRequest(beneficiarioId))
 				.retrieve()
-				.body(AutorizacaoResponse.class)
-				.autorizacaoId());
+				.body(AutorizacaoResponse.class))
+				.autorizacaoId();
 	}
 
 	/** Parcelas futuras do beneficiário, como a Central as informa. */
@@ -43,13 +44,23 @@ public class CentralClient {
 				}));
 	}
 
-	/** Traduz conexão recusada, timeout ({@link ResourceAccessException}) e 5xx em {@link CentralIndisponivelException}. */
+	/**
+	 * Traduz conexão recusada, timeout ({@link ResourceAccessException}) e 5xx em {@link CentralIndisponivelException};
+	 * qualquer outra falha da chamada (4xx, corpo ilegível ou vazio) em {@link FalhaNaIntegracaoException}.
+	 */
 	private static <T> T chamar(Supplier<T> chamada) {
+		T resposta;
 		try {
-			return chamada.get();
+			resposta = chamada.get();
 		} catch (ResourceAccessException | HttpServerErrorException e) {
 			throw new CentralIndisponivelException(e);
+		} catch (RestClientException e) {
+			throw new FalhaNaIntegracaoException("Falha na chamada à Central de Convênios", e);
 		}
+		if (resposta == null) {
+			throw new FalhaNaIntegracaoException("Resposta da Central de Convênios sem corpo", null);
+		}
+		return resposta;
 	}
 
 	public record Parcela(String parcelaId, String convenioId, BigDecimal valor, LocalDate dataDesconto, String status) {
@@ -59,6 +70,13 @@ public class CentralClient {
 	}
 
 	private record AutorizacaoResponse(String autorizacaoId) {
+
+		AutorizacaoResponse {
+			if (autorizacaoId == null) {
+				throw new IllegalArgumentException("Resposta da Central sem autorizacaoId");
+			}
+		}
+
 	}
 
 }
