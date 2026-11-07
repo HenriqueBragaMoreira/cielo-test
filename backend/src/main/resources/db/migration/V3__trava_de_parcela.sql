@@ -34,5 +34,8 @@ create trigger operacao_portabilidade_propaga_status
     for each row when (old.status is distinct from new.status)
     execute function operacao_portabilidade_propaga_status();
 
+-- as operações gravadas antes desta migração: sem isto, todas ficariam travadas pelo default
+update operacao_parcela p set ativa = operacao_ativa(o.status) from operacao_portabilidade o where o.id = p.operacao_id;
+
 -- uma requisição concorrente com a mesma parcela espera aqui até o commit da outra e então viola o índice
 create unique index operacao_parcela_ativa_unica on operacao_parcela (parcela_id) where ativa;

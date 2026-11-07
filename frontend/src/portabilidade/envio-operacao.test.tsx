@@ -400,6 +400,64 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       expect(botaoEnviar()).toBeEnabled()
     }
   )
+
+  it.each([
+    {
+      caso: "fica inelegível",
+      status: 409,
+      title: "Parcela em outra operação",
+      agendaAtualizada: [
+        agenda[0],
+        {
+          ...agenda[1],
+          elegivel: false,
+          motivoInelegibilidade:
+            "A parcela já está numa operação de portabilidade pendente ou confirmada.",
+        },
+      ],
+    },
+    {
+      caso: "sai da agenda",
+      status: 422,
+      title: "Parcela fora da agenda",
+      agendaAtualizada: [agenda[0]],
+    },
+  ])(
+    "depois do $status, atualiza a agenda e tira da seleção e do total a parcela que $caso",
+    async ({ status, title, agendaAtualizada }) => {
+      const enviados: unknown[] = []
+      server.use(
+        http.get(agendaBen001, () =>
+          HttpResponse.json(enviados.length ? agendaAtualizada : agenda)
+        ),
+        http.post(operacoes, async ({ request }) => {
+          enviados.push(await request.json())
+          return HttpResponse.json(
+            { type: "about:blank", title, status, detail: title },
+            {
+              status,
+              headers: { "Content-Type": "application/problem+json" },
+            }
+          )
+        })
+      )
+      const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+      await selecionarPreencherEEnviar(user)
+
+      await vi.waitFor(() =>
+        expect(screen.getByText(/^Total selecionado:/)).toHaveTextContent(
+          /^Total selecionado: R\$\s150,50$/
+        )
+      )
+      expect(
+        screen.queryByRole("checkbox", { name: /P002/, checked: true })
+      ).not.toBeInTheDocument()
+      await user.click(botaoEnviar())
+      await vi.waitFor(() => expect(enviados).toHaveLength(2))
+      expect(enviados[1]).toMatchObject({ parcelaIds: ["P001"] })
+    }
+  )
 })
 
 /** Toda tentativa de envio falha na conexão; devolve as `Idempotency-Key` recebidas, na ordem. */

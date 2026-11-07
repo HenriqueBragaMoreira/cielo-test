@@ -236,6 +236,29 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 		central.verify(1, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
 	}
 
+	@Test
+	void envioDuploConcorrenteComAMesmaChaveEACentralIndisponivelChamaACentralUmaVez() throws Exception {
+		autorizar("BEN001");
+		agendaDoBen001();
+		// a segunda requisição chega enquanto a primeira espera a Central; a falha da primeira não é reenviada por ela
+		central.stubFor(post("/operacoes-portabilidade").willReturn(serviceUnavailable().withFixedDelay(500)));
+		var chave = UUID.randomUUID();
+		var partida = new CountDownLatch(1);
+		Callable<String> envio = () -> {
+			partida.await();
+			return esperarFalhaNoEnvio(enviar(chave, "BEN001", List.of("P001"), CONTA_DESTINO));
+		};
+
+		try (var executor = Executors.newFixedThreadPool(2)) {
+			var primeira = executor.submit(envio);
+			var segunda = executor.submit(envio);
+			partida.countDown();
+
+			assertThat(segunda.get()).isEqualTo(primeira.get());
+		}
+		central.verify(1, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
 	static Stream<Arguments> centralIndisponivelNoEnvio() {
 		return Stream.of(
 				Arguments.of("503", serviceUnavailable()),
@@ -569,6 +592,23 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 	}
 
 	@Test
+	void motivoDeRejeicaoLongoFicaGravadoInteiro() {
+		var id = operacaoPendente("prot-1");
+		// a Central não limita o tamanho do motivo
+		var motivo = "Motivo extenso. ".repeat(100);
+		centralDecide("prot-1", """
+				{ "status": "REJEITADA", "motivoRejeicao": "%s" }""".formatted(motivo));
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("REJEITADA")
+				.jsonPath("$.motivoRejeicao").isEqualTo(motivo)
+				.jsonPath("$.eventos[2].detalhe").isEqualTo(motivo);
+	}
+
+	@Test
 	void consultasConcorrentesRegistramOEventoFinalUmaVezSo() throws Exception {
 		var id = operacaoPendente("prot-1");
 		// a demora faz todas as consultas lerem PENDENTE antes de qualquer uma registrar a decisão
@@ -611,20 +651,22 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 		central.verify(1, getRequestedFor(urlEqualTo("/operacoes-portabilidade/prot-1")));
 	}
 
-	@Test
-	void decisaoDaCentralComStatusDesconhecidoRespondeFalhaNaIntegracaoEContinuaPendente() {
+	static Stream<Arguments> respostaInesperadaNaConsulta() {
+		return Stream.of(
+				Arguments.of("status desconhecido", okJson("""
+						{ "status": "EM_ANALISE", "motivoRejeicao": null }""")),
+				Arguments.of("corpo ilegível", okJson("não é json")),
+				Arguments.of("4xx que não é 404", aResponse().withStatus(400)));
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("respostaInesperadaNaConsulta")
+	void respostaInesperadaDaCentralNaConsultaContinuaPendenteComAvisoDeFalhaNaAtualizacao(String falha,
+			ResponseDefinitionBuilder resposta) {
 		var id = operacaoPendente("prot-1");
-		centralDecide("prot-1", """
-				{ "status": "EM_ANALISE", "motivoRejeicao": null }""");
+		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(resposta));
 
-		esperarFalhaNaIntegracao(api.get().uri("/api/operacoes-portabilidade/{id}", id).exchange());
-
-		centralAindaDecide("prot-1");
-		api.get().uri("/api/operacoes-portabilidade/{id}", id)
-				.exchange()
-				.expectBody()
-				.jsonPath("$.status").isEqualTo("PENDENTE")
-				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
+		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO", true);
 	}
 
 	@Test
@@ -632,7 +674,7 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 		var id = operacaoPendente("prot-1");
 		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(serviceUnavailable()));
 
-		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO");
+		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO", true);
 	}
 
 	@Test
@@ -642,24 +684,33 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(okJson("""
 				{ "status": "CONFIRMADA", "motivoRejeicao": null }""").withFixedDelay(2_000)));
 
-		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO");
+		esperarPendenteComAviso(id, "FALHA_NA_ATUALIZACAO", true);
 	}
 
 	@Test
-	void protocoloNaoReconhecidoPelaCentralContinuaPendenteComAvisoExplicito() {
+	void protocoloNaoReconhecidoPelaCentralContinuaPendenteComAvisoExplicitoESemRetryAfter() {
 		var id = operacaoPendente("prot-1");
 		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(notFound()));
 
-		esperarPendenteComAviso(id, "PROTOCOLO_NAO_RECONHECIDO");
+		// a Central não vai reconhecer o protocolo na próxima consulta: o cliente para de consultar sozinho
+		esperarPendenteComAviso(id, "PROTOCOLO_NAO_RECONHECIDO", false);
 	}
 
-	/** Sem evento novo nem mudança de estado, e com {@code Retry-After} para o cliente seguir consultando. */
-	private void esperarPendenteComAviso(String id, String aviso) {
-		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+	/**
+	 * Sem evento novo nem mudança de estado; com {@code Retry-After} só quando vale a pena o cliente seguir
+	 * consultando.
+	 */
+	private void esperarPendenteComAviso(String id, String aviso, boolean comRetryAfter) {
+		var resposta = api.get().uri("/api/operacoes-portabilidade/{id}", id)
 				.exchange()
-				.expectStatus().isOk()
-				.expectHeader().valueEquals("Retry-After", "2")
-				.expectBody()
+				.expectStatus().isOk();
+		if (comRetryAfter) {
+			resposta.expectHeader().valueEquals("Retry-After", "2");
+		}
+		else {
+			resposta.expectHeader().doesNotExist("Retry-After");
+		}
+		resposta.expectBody()
 				.jsonPath("$.status").isEqualTo("PENDENTE")
 				.jsonPath("$.protocolo").isEqualTo("prot-1")
 				.jsonPath("$.avisoAtualizacao").isEqualTo(aviso)

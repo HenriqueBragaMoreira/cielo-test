@@ -44,13 +44,15 @@ class OperacaoPortabilidadeController {
 
 	/**
 	 * A operação pelo nosso identificador, não pelo protocolo da Central. Enquanto {@code PENDENTE}, o header
-	 * {@code Retry-After} indica quando consultar de novo (ADR-0008).
+	 * {@code Retry-After} indica quando consultar de novo (ADR-0008), exceto se a Central não reconhece mais o
+	 * protocolo: consultar de novo não mudaria nada.
 	 */
 	@GetMapping("/{id}")
 	ResponseEntity<OperacaoPortabilidadeService.Operacao> consultar(@PathVariable UUID id) {
 		var operacao = service.consultar(id);
 		var resposta = ResponseEntity.ok();
-		if (operacao.status() == StatusOperacao.PENDENTE) {
+		if (operacao.status() == StatusOperacao.PENDENTE
+				&& operacao.avisoAtualizacao() != AvisoAtualizacao.PROTOCOLO_NAO_RECONHECIDO) {
 			resposta.header(HttpHeaders.RETRY_AFTER, "2");
 		}
 		return resposta.body(operacao);
