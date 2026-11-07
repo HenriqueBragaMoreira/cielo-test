@@ -1,7 +1,9 @@
 package br.com.portabilidade.autorizacao;
 
 import br.com.portabilidade.central.CentralClient;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -11,14 +13,19 @@ public class AutorizacaoService {
 
 	private final AutorizacaoRepository repository;
 	private final CentralClient central;
+	private final JdbcClient jdbc;
 
-	AutorizacaoService(AutorizacaoRepository repository, CentralClient central) {
+	AutorizacaoService(AutorizacaoRepository repository, CentralClient central, JdbcClient jdbc) {
 		this.repository = repository;
 		this.central = central;
+		this.jdbc = jdbc;
 	}
 
 	/** Registra a autorização na Central; se o beneficiário já tem uma, devolve a existente sem chamar a Central. */
+	@Transactional
 	Registro registrar(String beneficiarioId) {
+		// lock consultivo até o fim da transação: registros simultâneos do mesmo beneficiário chamam a Central uma vez só
+		jdbc.sql("select pg_advisory_xact_lock(hashtext(?))").param(beneficiarioId).query((linha, numero) -> 1).single();
 		return repository.findById(beneficiarioId)
 				.map(existente -> new Registro(existente, false))
 				.orElseGet(() -> {

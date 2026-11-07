@@ -6,7 +6,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.badRequest;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
@@ -15,6 +19,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.serviceUnavailable;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class AutorizacaoApiTest extends ApiTest {
 
@@ -50,6 +55,25 @@ class AutorizacaoApiTest extends ApiTest {
 				.expectStatus().isOk()
 				.expectBody().json(primeira, JsonCompareMode.STRICT);
 
+		central.verify(1, postRequestedFor(urlEqualTo("/autorizacoes")));
+	}
+
+	@Test
+	void registrosSimultaneosChamamACentralUmaVez() throws InterruptedException {
+		// o atraso mantém a primeira chamada à Central em andamento enquanto a segunda requisição chega
+		central.stubFor(post("/autorizacoes").willReturn(okJson("""
+				{ "autorizacaoId": "aut-123" }""").withStatus(201).withFixedDelay(500)));
+		Callable<Integer> registrarBen001 = () -> registrar("BEN001").returnResult(String.class).getStatus().value();
+
+		List<Integer> status;
+		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			status = executor.invokeAll(List.of(registrarBen001, registrarBen001)).stream()
+					.map(Future::resultNow)
+					.sorted()
+					.toList();
+		}
+
+		assertThat(status).containsExactly(200, 201);
 		central.verify(1, postRequestedFor(urlEqualTo("/autorizacoes")));
 	}
 
