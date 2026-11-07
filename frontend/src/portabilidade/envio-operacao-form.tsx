@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { useState, type ComponentProps } from "react"
+import { useRef, type ComponentProps } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ErroApi } from "@/lib/api"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { enviarOperacao } from "./api"
@@ -40,8 +41,8 @@ export function EnvioOperacaoForm({
   beneficiarioId: string
   parcelas: Parcela[]
 }) {
-  // gerada ao abrir o formulário (ADR-0005)
-  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  // uma chave por intenção: reutilizada em qualquer reenvio, renovada só quando o pedido muda (ADR-0005)
+  const intencao = useRef<{ chave: string; pedido: string } | null>(null)
   const form = useForm<Formulario>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -58,12 +59,24 @@ export function EnvioOperacaoForm({
     .reduce((soma, parcela) => soma + parcela.valor, 0)
   const navigate = useNavigate()
   const envio = useMutation({
-    mutationFn: ({ parcelaIds, ...contaDestino }: Formulario) =>
-      enviarOperacao(idempotencyKey, {
-        beneficiarioId,
-        parcelaIds,
-        contaDestino,
-      }),
+    mutationFn: ({ parcelaIds, ...contaDestino }: Formulario) => {
+      const pedido = { beneficiarioId, parcelaIds, contaDestino }
+      // a mesma seleção em outra ordem é a mesma intenção
+      const assinatura = JSON.stringify({
+        ...pedido,
+        parcelaIds: [...parcelaIds].sort(),
+      })
+      if (intencao.current?.pedido !== assinatura) {
+        intencao.current = { chave: crypto.randomUUID(), pedido: assinatura }
+      }
+      return enviarOperacao(intencao.current.chave, pedido)
+    },
+    onError: (erro) => {
+      // 422: o pedido não será aceito como está; o próximo envio é uma nova intenção
+      if (erro instanceof ErroApi && erro.status === 422) {
+        intencao.current = null
+      }
+    },
     onSuccess: (operacao) =>
       navigate({
         to: "/operacoes-portabilidade/$operacaoId",

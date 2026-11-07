@@ -10,6 +10,9 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
@@ -19,6 +22,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class OperacaoPortabilidadeApiTest extends ApiTest {
 
@@ -150,6 +154,74 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.jsonPath("$.detail").isEqualTo("As parcelas [P999] não estão na agenda do beneficiário BEN001.");
 
 		central.verify(0, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
+	}
+
+	@Test
+	void reenvioComAMesmaChaveEOMesmoCorpoDevolveAMesmaOperacaoSemChamarACentral() {
+		autorizar("BEN001");
+		agendaDoBen001();
+		centralAceitaOEnvio("prot-1");
+		var chave = UUID.randomUUID();
+		var primeira = enviar(chave, "BEN001", List.of("P001", "P002"), CONTA_DESTINO)
+				.expectStatus().isAccepted()
+				.expectBody(String.class).returnResult().getResponseBody();
+		central.resetRequests();
+
+		// a ordem das parcelas não muda a intenção
+		enviar(chave, "BEN001", List.of("P002", "P001"), CONTA_DESTINO)
+				.expectStatus().isAccepted()
+				.expectBody().json(primeira, JsonCompareMode.STRICT);
+
+		central.verify(0, anyRequestedFor(anyUrl()));
+	}
+
+	@Test
+	void mesmaChaveComCorpoDiferenteRespondeUnprocessableSemChamarACentral() {
+		autorizar("BEN001");
+		agendaDoBen001();
+		centralAceitaOEnvio("prot-1");
+		var chave = UUID.randomUUID();
+		enviar(chave, "BEN001", List.of("P001"), CONTA_DESTINO).expectStatus().isAccepted();
+		central.resetRequests();
+
+		enviar(chave, "BEN001", List.of("P001", "P002"), CONTA_DESTINO)
+				.expectStatus().isEqualTo(422)
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.status").isEqualTo(422)
+				.jsonPath("$.title").isEqualTo("Chave de idempotência já usada")
+				.jsonPath("$.detail").isEqualTo("Este pedido de portabilidade difere do que já foi enviado com a mesma"
+						+ " chave de idempotência (" + chave + "). Confira as parcelas e a conta e envie novamente.");
+
+		central.verify(0, anyRequestedFor(anyUrl()));
+	}
+
+	@Test
+	void envioDuploConcorrenteComAMesmaChaveCriaUmaOperacaoEChamaACentralUmaVez() throws Exception {
+		autorizar("BEN001");
+		agendaDoBen001();
+		// a Central demora para a segunda requisição chegar enquanto a primeira ainda está na transação
+		central.stubFor(post("/operacoes-portabilidade").willReturn(okJson("""
+				{ "protocolo": "prot-1" }""").withStatus(202).withFixedDelay(500)));
+		var chave = UUID.randomUUID();
+		var partida = new CountDownLatch(1);
+		Callable<String> envio = () -> {
+			partida.await();
+			return enviar(chave, "BEN001", List.of("P001"), CONTA_DESTINO)
+					.expectStatus().isAccepted()
+					.expectBody(String.class).returnResult().getResponseBody();
+		};
+
+		try (var executor = Executors.newFixedThreadPool(2)) {
+			var primeira = executor.submit(envio);
+			var segunda = executor.submit(envio);
+			partida.countDown();
+
+			String idPrimeira = JsonPath.read(primeira.get(), "$.id");
+			String idSegunda = JsonPath.read(segunda.get(), "$.id");
+			assertThat(idSegunda).isEqualTo(idPrimeira);
+		}
+		central.verify(1, postRequestedFor(urlEqualTo("/operacoes-portabilidade")));
 	}
 
 	@Test
