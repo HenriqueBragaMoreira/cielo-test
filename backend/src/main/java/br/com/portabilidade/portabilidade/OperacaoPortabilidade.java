@@ -83,20 +83,36 @@ class OperacaoPortabilidade {
 
 	/** A Central aceitou o envio, ou o reenvio a partir de FALHA_ENVIO, e atribuiu o protocolo. */
 	void registrarEnvio(String protocolo) {
+		status = depoisDoEnvio(StatusOperacao.PENDENTE);
 		this.protocolo = protocolo;
-		status = StatusOperacao.PENDENTE;
 		registrar(TipoEvento.ENVIADA, null);
 	}
 
 	/** A Central não respondeu ao envio: a operação pode ser reenviada e libera as parcelas (ADR-0007). */
 	void registrarFalhaEnvio() {
-		status = StatusOperacao.FALHA_ENVIO;
+		status = depoisDoEnvio(StatusOperacao.FALHA_ENVIO);
 		registrar(TipoEvento.FALHA_ENVIO, null);
+	}
+
+	/**
+	 * A primeira tentativa de envio define o estado inicial; um reenvio, a partir de FALHA_ENVIO, é uma transição
+	 * (ADR-0007). Antes da primeira tentativa a operação está PENDENTE sem protocolo, só dentro da transação do envio.
+	 */
+	private StatusOperacao depoisDoEnvio(StatusOperacao resultado) {
+		var primeiraTentativa = status == StatusOperacao.PENDENTE && protocolo == null;
+		return primeiraTentativa && resultado.podeSerInicial() ? resultado : status.transicionarPara(resultado);
 	}
 
 	/** Só uma operação em FALHA_ENVIO é reenviada à Central; nos outros estados, o reenvio só a devolve (ADR-0005). */
 	boolean aguardaReenvio() {
-		return status == StatusOperacao.FALHA_ENVIO;
+		return status.podeIrPara(StatusOperacao.PENDENTE);
+	}
+
+	/** A Central decidiu: confirmação, ou rejeição com o motivo. A data/hora do evento é a da observação (ADR-0007). */
+	void registrarDecisao(StatusOperacao decisao, String motivoRejeicao) {
+		status = status.transicionarPara(decisao);
+		this.motivoRejeicao = motivoRejeicao;
+		registrar(decisao == StatusOperacao.CONFIRMADA ? TipoEvento.CONFIRMADA : TipoEvento.REJEITADA, motivoRejeicao);
 	}
 
 	/** O pedido tem o mesmo corpo do que criou esta operação, ou seja, é a mesma intenção (ADR-0005). */

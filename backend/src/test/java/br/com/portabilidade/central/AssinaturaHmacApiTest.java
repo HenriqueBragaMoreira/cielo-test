@@ -2,6 +2,7 @@ package br.com.portabilidade.central;
 
 import br.com.portabilidade.ApiTest;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -14,7 +15,9 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.UUID;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -41,6 +44,25 @@ class AssinaturaHmacApiTest extends ApiTest {
 
 	@Test
 	void envioDaOperacaoChegaNaCentralComAssinaturaQueConfereComOSegredo() throws Exception {
+		enviarOperacao();
+
+		verificarAssinatura(central.findAll(postRequestedFor(urlEqualTo("/operacoes-portabilidade"))).getFirst(),
+				"/operacoes-portabilidade");
+	}
+
+	@Test
+	void consultaDaOperacaoChegaNaCentralComAssinaturaQueConfereComOSegredo() throws Exception {
+		var id = enviarOperacao();
+		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(aResponse().withStatus(204)));
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id).exchange().expectStatus().isOk();
+
+		verificarAssinatura(central.findAll(getRequestedFor(urlEqualTo("/operacoes-portabilidade/prot-1"))).getFirst(),
+				"/operacoes-portabilidade/prot-1");
+	}
+
+	/** Autoriza o BEN001 e envia uma operação que a Central aceita com o protocolo {@code prot-1}; devolve o id dela. */
+	private String enviarOperacao() {
 		central.stubFor(post("/autorizacoes").willReturn(okJson("""
 				{ "autorizacaoId": "aut-123" }""").withStatus(201)));
 		central.stubFor(get("/beneficiarios/BEN001/agenda").willReturn(okJson("""
@@ -54,17 +76,16 @@ class AssinaturaHmacApiTest extends ApiTest {
 				.exchange()
 				.expectStatus().isCreated();
 
-		api.post().uri("/api/operacoes-portabilidade")
+		var enviada = api.post().uri("/api/operacoes-portabilidade")
 				.header("Idempotency-Key", UUID.randomUUID().toString())
 				.contentType(MediaType.APPLICATION_JSON)
 				.body("""
 						{ "beneficiarioId": "BEN001", "parcelaIds": ["P001"],
 						  "contaDestino": { "banco": "001", "agencia": "1234", "conta": "56789", "digito": "0" } }""")
 				.exchange()
-				.expectStatus().isAccepted();
-
-		verificarAssinatura(central.findAll(postRequestedFor(urlEqualTo("/operacoes-portabilidade"))).getFirst(),
-				"/operacoes-portabilidade");
+				.expectStatus().isAccepted()
+				.expectBody(String.class).returnResult().getResponseBody();
+		return JsonPath.read(enviada, "$.id");
 	}
 
 	/** Remonta o texto canônico a partir do que a Central recebeu: timestamp, método, caminho e corpo. */

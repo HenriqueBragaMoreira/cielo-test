@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
+import { CircleCheckIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,14 +25,18 @@ const nomeDoEvento: Record<TipoEvento, string> = {
   REJEITADA: "Rejeitada",
 }
 
-/** Passo 4: a operação como está gravada, com a linha do tempo. */
+/**
+ * Passo 4: a operação com a linha do tempo, acompanhada sozinha até a confirmação ou a rejeição (ADR-0008). O polling
+ * segue o `Retry-After` e para no estado final; ao sair da tela, o `AbortSignal` cancela a consulta em andamento.
+ */
 export function OperacaoPage() {
   const { operacaoId } = useParams({
     from: "/operacoes-portabilidade/$operacaoId",
   })
   const operacao = useQuery({
     queryKey: ["operacao", operacaoId],
-    queryFn: () => consultarOperacao(operacaoId),
+    queryFn: ({ signal }) => consultarOperacao(operacaoId, signal),
+    refetchInterval: (query) => query.state.data?.repetirEmMs ?? false,
     retry: false,
   })
 
@@ -61,17 +66,89 @@ export function OperacaoPage() {
             </Button>
           </div>
         )}
-        {operacao.data && <DetalheOperacao operacao={operacao.data} />}
+        {operacao.data && (
+          <div className="flex flex-col gap-6">
+            <SituacaoOperacao
+              operacao={operacao.data.operacao}
+              atualizando={operacao.isFetching}
+              onAtualizar={() => operacao.refetch()}
+            />
+            <DetalheOperacao operacao={operacao.data.operacao} />
+          </div>
+        )}
       </CardContent>
     </Card>
   )
+}
+
+/** A espera pela Central, com o "Atualizar" sob demanda, ou a decisão dela. */
+function SituacaoOperacao({
+  operacao,
+  atualizando,
+  onAtualizar,
+}: {
+  operacao: Operacao
+  atualizando: boolean
+  onAtualizar: () => void
+}) {
+  switch (operacao.status) {
+    case "PENDENTE":
+      return (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+        >
+          <span className="flex items-center gap-2">
+            <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
+            Aguardando a decisão da Central de Convênios…
+          </span>
+          <Button
+            variant="outline"
+            disabled={atualizando}
+            onClick={onAtualizar}
+          >
+            Atualizar
+          </Button>
+        </div>
+      )
+    case "CONFIRMADA":
+      return (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-emerald-600/50 p-3 text-sm text-emerald-700 dark:text-emerald-400"
+        >
+          <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-medium">Operação confirmada</p>
+            <p>As parcelas passaram para a nova credora.</p>
+          </div>
+        </div>
+      )
+    case "REJEITADA":
+      return (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
+        >
+          <CircleXIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-medium">Operação rejeitada</p>
+            {operacao.motivoRejeicao && (
+              <p>{`Motivo: ${operacao.motivoRejeicao}`}</p>
+            )}
+          </div>
+        </div>
+      )
+    default:
+      return null
+  }
 }
 
 function DetalheOperacao({ operacao }: { operacao: Operacao }) {
   const { banco, agencia, conta, digito } = operacao.contaDestino
   const total = operacao.parcelas.reduce((soma, p) => soma + p.valor, 0)
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
         <dt className="text-muted-foreground">Status</dt>
         <dd className="font-medium">{operacao.status}</dd>
@@ -127,6 +204,6 @@ function DetalheOperacao({ operacao }: { operacao: Operacao }) {
           ))}
         </ol>
       </section>
-    </div>
+    </>
   )
 }

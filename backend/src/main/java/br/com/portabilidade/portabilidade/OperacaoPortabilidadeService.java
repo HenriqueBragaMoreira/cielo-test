@@ -6,6 +6,8 @@ import br.com.portabilidade.central.CentralClient;
 import br.com.portabilidade.central.CentralIndisponivelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,13 +33,15 @@ class OperacaoPortabilidadeService {
 	private final AutorizacaoService autorizacoes;
 	private final CentralClient central;
 	private final TransactionTemplate transacao;
+	private final EntityManager entityManager;
 
 	OperacaoPortabilidadeService(OperacaoPortabilidadeRepository repository, AutorizacaoService autorizacoes,
-			CentralClient central, TransactionTemplate transacao) {
+			CentralClient central, TransactionTemplate transacao, EntityManager entityManager) {
 		this.repository = repository;
 		this.autorizacoes = autorizacoes;
 		this.central = central;
 		this.transacao = transacao;
+		this.entityManager = entityManager;
 	}
 
 	/**
@@ -116,10 +120,24 @@ class OperacaoPortabilidadeService {
 		operacao.registrarEnvio(protocolo);
 	}
 
-	/** Só lê o que está gravado; o acompanhamento junto à Central é de outro ticket. */
-	@Transactional(readOnly = true)
+	/**
+	 * Acompanhamento (ADR-0008): uma operação {@code PENDENTE} consulta a Central a cada leitura e, se ela já decidiu,
+	 * registra a transição e o evento final. Uma operação em estado final não consulta a Central de novo.
+	 */
+	@Transactional
 	Operacao consultar(UUID id) {
-		return repository.findById(id).map(Operacao::de).orElseThrow(() -> new OperacaoNaoEncontradaException(id));
+		var operacao = repository.findById(id).orElseThrow(() -> new OperacaoNaoEncontradaException(id));
+		if (operacao.getStatus() == StatusOperacao.PENDENTE) {
+			central.consultarOperacao(operacao.getProtocolo()).ifPresent(decisao -> {
+				// atualização condicional (ADR-0007): relê a linha travada e só decide se ela ainda estiver PENDENTE,
+				// para consultas concorrentes registrarem a transição e o evento final uma única vez
+				entityManager.refresh(operacao, LockModeType.PESSIMISTIC_WRITE);
+				if (operacao.getStatus() == StatusOperacao.PENDENTE) {
+					operacao.registrarDecisao(StatusOperacao.valueOf(decisao.status()), decisao.motivoRejeicao());
+				}
+			});
+		}
+		return Operacao.de(operacao);
 	}
 
 	private List<ParcelaOperacao> lerDaAgenda(String beneficiarioId, List<String> parcelaIds) {

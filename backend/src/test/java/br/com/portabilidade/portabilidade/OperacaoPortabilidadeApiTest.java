@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -25,6 +26,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -375,6 +377,7 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.expectStatus().isAccepted()
 				.expectBody(String.class).returnResult().getResponseBody();
 		String id = JsonPath.read(enviada, "$.id");
+		centralAindaDecide("prot-1");
 
 		api.get().uri("/api/operacoes-portabilidade/{id}", id)
 				.exchange()
@@ -406,6 +409,126 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 		return id;
 	}
 
+	@Test
+	void consultaDuranteAEsperaDaCentralContinuaPendenteComRetryAfter() {
+		var id = operacaoPendente("prot-1");
+		centralAindaDecide("prot-1");
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectHeader().valueEquals("Retry-After", "2")
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("PENDENTE")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
+
+		central.verify(1, getRequestedFor(urlEqualTo("/operacoes-portabilidade/prot-1")));
+	}
+
+	@Test
+	void confirmacaoDaCentralDeixaAOperacaoConfirmadaComOEventoFinal() {
+		var id = operacaoPendente("prot-1");
+		centralDecide("prot-1", """
+				{ "status": "CONFIRMADA", "motivoRejeicao": null }""");
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectHeader().doesNotExist("Retry-After")
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("CONFIRMADA")
+				.jsonPath("$.motivoRejeicao").isEmpty()
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA", "CONFIRMADA"))
+				.jsonPath("$.eventos[2].dataHora").isNotEmpty();
+	}
+
+	@Test
+	void rejeicaoDaCentralDeixaAOperacaoRejeitadaComOMotivoNoEventoFinal() {
+		var id = operacaoPendente("prot-1");
+		centralDecide("prot-1", """
+				{ "status": "REJEITADA", "motivoRejeicao": "Beneficiário atingiu o limite de margem consignável" }""");
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectHeader().doesNotExist("Retry-After")
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("REJEITADA")
+				.jsonPath("$.motivoRejeicao").isEqualTo("Beneficiário atingiu o limite de margem consignável")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA", "REJEITADA"))
+				.jsonPath("$.eventos[2].detalhe").isEqualTo("Beneficiário atingiu o limite de margem consignável");
+	}
+
+	@Test
+	void consultasConcorrentesRegistramOEventoFinalUmaVezSo() throws Exception {
+		var id = operacaoPendente("prot-1");
+		// a demora faz todas as consultas lerem PENDENTE antes de qualquer uma registrar a decisão
+		central.stubFor(get("/operacoes-portabilidade/prot-1").willReturn(okJson("""
+				{ "status": "CONFIRMADA", "motivoRejeicao": null }""").withFixedDelay(300)));
+
+		try (var executor = Executors.newFixedThreadPool(4)) {
+			var consultas = IntStream.range(0, 4)
+					.mapToObj(i -> executor.submit(() -> api.get().uri("/api/operacoes-portabilidade/{id}", id)
+							.exchange()
+							.expectStatus().isOk()))
+					.toList();
+			for (var consulta : consultas) {
+				consulta.get();
+			}
+		}
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("CONFIRMADA")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA", "CONFIRMADA"));
+	}
+
+	@Test
+	void operacaoEmEstadoFinalNaoConsultaACentralDeNovo() {
+		var id = operacaoPendente("prot-1");
+		centralDecide("prot-1", """
+				{ "status": "CONFIRMADA", "motivoRejeicao": null }""");
+		api.get().uri("/api/operacoes-portabilidade/{id}", id).exchange().expectStatus().isOk();
+
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("CONFIRMADA")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA", "CONFIRMADA"));
+
+		central.verify(1, getRequestedFor(urlEqualTo("/operacoes-portabilidade/prot-1")));
+	}
+
+	@Test
+	void decisaoDaCentralComStatusDesconhecidoRespondeFalhaNaIntegracaoEContinuaPendente() {
+		var id = operacaoPendente("prot-1");
+		centralDecide("prot-1", """
+				{ "status": "EM_ANALISE", "motivoRejeicao": null }""");
+
+		esperarFalhaNaIntegracao(api.get().uri("/api/operacoes-portabilidade/{id}", id).exchange());
+
+		centralAindaDecide("prot-1");
+		api.get().uri("/api/operacoes-portabilidade/{id}", id)
+				.exchange()
+				.expectBody()
+				.jsonPath("$.status").isEqualTo("PENDENTE")
+				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
+	}
+
+	/** Uma operação aceita pela Central, PENDENTE com o protocolo dado. */
+	private String operacaoPendente(String protocolo) {
+		autorizar("BEN001");
+		agendaDoBen001();
+		centralAceitaOEnvio(protocolo);
+		var enviada = enviar(UUID.randomUUID(), "BEN001", List.of("P001"), CONTA_DESTINO)
+				.expectStatus().isAccepted()
+				.expectBody(String.class).returnResult().getResponseBody();
+		return JsonPath.read(enviada, "$.id");
+	}
+
 	private void autorizar(String beneficiarioId) {
 		central.stubFor(post("/autorizacoes").willReturn(okJson("""
 				{ "autorizacaoId": "aut-123" }""").withStatus(201)));
@@ -427,6 +550,16 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 	private static void centralAceitaOEnvio(String protocolo) {
 		central.stubFor(post("/operacoes-portabilidade").willReturn(okJson("""
 				{ "protocolo": "%s" }""".formatted(protocolo)).withStatus(202)));
+	}
+
+	/** O {@code 204} da Central: a operação ainda está sendo decidida. */
+	private static void centralAindaDecide(String protocolo) {
+		central.stubFor(get("/operacoes-portabilidade/" + protocolo)
+				.willReturn(aResponse().withStatus(204).withHeader("Retry-After", "2")));
+	}
+
+	private static void centralDecide(String protocolo, String decisao) {
+		central.stubFor(get("/operacoes-portabilidade/" + protocolo).willReturn(okJson(decisao)));
 	}
 
 	private RestTestClient.ResponseSpec enviar(UUID chave, String beneficiarioId, List<String> parcelaIds,
