@@ -267,3 +267,19 @@ Escolhas de escopo, a partir de ["Fora de escopo"](./docs/requirements.md#fora-d
 - **Recuperação de protocolos órfãos** após timeout no envio, que depende de idempotência do lado da Central de Convênios ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
 
 ## 11. Como a IA foi usada
+
+<!-- TODO candidato: rascunho montado por um agente a partir do histórico (issues, PRs, git log). Revise, ajuste ao seu relato e remova os comentários TODO antes da entrega. -->
+
+Usei o Claude Code (agente de linha de comando) do planejamento à entrega, com skills que conduzem cada etapa. As decisões de escopo e de arquitetura e a aprovação de cada PR foram minhas; o agente redigiu os documentos, escreveu o código e os testes e fez as revisões. Dos 60 commits em `main`, 48 trazem o trailer `Co-Authored-By: Claude`.
+
+1. **Planejamento.** Com a skill `grilling`, o agente me questionou sobre o briefing até cada ponto aberto virar uma decisão. A skill `domain-modeling` registrou essas decisões nos [ADRs](./docs/adr/) e no [GLOSSARY.md](./GLOSSARY.md), e o [catálogo de requisitos](./docs/requirements.md) liga cada requisito ao ADR que o atende (PR #1, só documentação).
+2. **PRDs e tickets.** Cada fatia vertical virou um PRD (#2, #3, #4) e tickets como sub-issues no GitHub, com as dependências entre eles registradas como "blocked by" nativo (por exemplo, #15 depende de #11 e #12).
+3. **Implementação.** Para cada PRD, uma branch de integração; para cada ticket, um subagente numa worktree isolada, trabalhando com TDD (skill `tdd`) nas três camadas de teste do [ADR-0010](./docs/adr/0010-test-strategy.md). Para APIs de bibliotecas recentes (Spring Boot 4, TanStack), o agente consultou a documentação atual pelo Context7.
+4. **Revisão.** As PRs de código passaram por revisão antes do merge. Na PR #10 a revisão gerou correções (registro serializado por beneficiário, validação do `beneficiarioId`, erros inesperados da Central como `502`) e um refactor guiado pelas skills `clean-code` e `solid`. Na PR #17, uma revisão de esforço alto feita pelo agente apontou 10 problemas: seis foram corrigidos na própria PR.
+5. **Onde a IA não teve a palavra final.** Parte dos apontamentos da PR #17 foi recusada porque contrariava decisões já registradas: a chamada à Central dentro da transação ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)), a falta de autorização no `GET` da operação ([ADR-0004](./docs/adr/0004-single-flow-without-authentication.md)) e o 4xx da Central no envio sem `FALHA_ENVIO` ([ADR-0007](./docs/adr/0007-operation-states-and-event-trail.md)). Os ADRs serviram de critério para aceitar ou recusar o que o agente propunha.
+<!-- TODO candidato: confirme quem recusou esses apontamentos (você ou o agente, a partir dos ADRs) e ajuste a frase. -->
+
+As skills versionadas no repositório estão em [`.agents/skills/`](./.agents/skills/), com a origem em [`skills-lock.json`](./skills-lock.json); as demais (`grilling`, `domain-modeling`, revisão de código) vêm da minha instalação local do Claude Code.
+<!-- TODO candidato: confira se a lista de skills locais está certa e se faltou alguma ferramenta. -->
+
+<!-- TODO candidato: em 2 a 4 linhas, sua avaliação pessoal: o que funcionou bem, o que precisou de mais correção sua e o que você revisou linha a linha. -->
