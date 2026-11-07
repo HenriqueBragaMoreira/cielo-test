@@ -53,11 +53,17 @@ const rejeitada: Operacao = {
   ],
 }
 
-/** Como o backend responde: `Retry-After` só enquanto a operação está PENDENTE. */
+/**
+ * Como o backend responde: `Retry-After` só enquanto a operação está PENDENTE e a Central ainda reconhece o
+ * protocolo.
+ */
 function responder(operacao: Operacao, retryAfter = "2") {
   return HttpResponse.json(operacao, {
     headers:
-      operacao.status === "PENDENTE" ? { "Retry-After": retryAfter } : {},
+      operacao.status === "PENDENTE" &&
+      operacao.avisoAtualizacao !== "PROTOCOLO_NAO_RECONHECIDO"
+        ? { "Retry-After": retryAfter }
+        : {},
   })
 }
 
@@ -256,8 +262,9 @@ describe("tela da operação", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
-  it("avisa quando a Central de Convênios não reconhece mais o protocolo", async () => {
-    consultasRespondidasCom({
+  it("avisa quando a Central de Convênios não reconhece mais o protocolo e para de consultar, mantendo o Atualizar", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const contador = consultasRespondidasCom({
       ...pendente,
       avisoAtualizacao: "PROTOCOLO_NAO_RECONHECIDO",
     })
@@ -269,6 +276,10 @@ describe("tela da operação", () => {
     )
     expect(aviso).not.toHaveTextContent("tentando novamente")
     expect(screen.getByText("PENDENTE")).toBeVisible()
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(contador.consultas).toBe(1)
+    expect(screen.getByRole("button", { name: "Atualizar" })).toBeEnabled()
   })
 
   it("o botão Atualizar consulta sob demanda", async () => {

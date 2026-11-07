@@ -88,7 +88,7 @@ export function OperacaoPage() {
   )
 }
 
-/** A última consulta não trouxe o status atual da Central; o polling continua enquanto a operação está PENDENTE. */
+/** A última consulta não trouxe o status atual da Central; o polling segue o `Retry-After`, ausente se o protocolo não é mais reconhecido. */
 function AvisoAtualizacao({ operacao }: { operacao: Operacao }) {
   if (!operacao.avisoAtualizacao) return null
   return (
