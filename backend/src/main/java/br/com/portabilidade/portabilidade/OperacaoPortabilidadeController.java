@@ -30,7 +30,8 @@ class OperacaoPortabilidadeController {
 
 	/**
 	 * Cria a operação e a envia à Central: {@code 202} com a operação {@code PENDENTE}. {@code 403} sem autorização
-	 * registrada; {@code 422} com parcela fora da agenda do beneficiário.
+	 * registrada; {@code 422} com parcela fora da agenda do beneficiário. Reenviar com a mesma {@code Idempotency-Key}
+	 * e o mesmo corpo devolve a mesma operação; a mesma chave com outro corpo dá {@code 422}.
 	 */
 	@PostMapping
 	ResponseEntity<OperacaoPortabilidadeService.Operacao> solicitar(
