@@ -1,0 +1,109 @@
+import { screen } from "@testing-library/react"
+import { delay, http, HttpResponse } from "msw"
+import { describe, expect, it } from "vitest"
+
+import { renderApp } from "@/test/render-app"
+import { server } from "@/test/server"
+
+describe("registrar a autorização", () => {
+  it("só habilita o botão com o identificador preenchido e o aceite marcado", async () => {
+    const { user } = renderApp()
+    const botao = await screen.findByRole("button", {
+      name: "Registrar autorização",
+    })
+    const aceite = screen.getByRole("checkbox", {
+      name: "O beneficiário autoriza a consulta da agenda e a portabilidade das parcelas",
+    })
+    expect(botao).toBeDisabled()
+
+    await user.type(
+      screen.getByLabelText("Identificador do beneficiário"),
+      "BEN001"
+    )
+    expect(botao).toBeDisabled()
+
+    await user.click(aceite)
+    expect(botao).toBeEnabled()
+
+    await user.clear(screen.getByLabelText("Identificador do beneficiário"))
+    expect(botao).toBeDisabled()
+  })
+
+  it("desabilita o botão durante o envio", async () => {
+    server.use(http.post("/api/autorizacoes", () => delay("infinite")))
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(
+      screen.getByRole("button", { name: "Registrar autorização" })
+    ).toBeDisabled()
+  })
+
+  it("confirma a autorização nova com a data/hora", async () => {
+    server.use(
+      http.post("/api/autorizacoes", async ({ request }) => {
+        const { beneficiarioId } = (await request.json()) as {
+          beneficiarioId: string
+        }
+        return HttpResponse.json(
+          {
+            beneficiarioId,
+            autorizacaoId: "aut-123",
+            autorizadaEm: "2026-11-06T13:45:00Z",
+          },
+          { status: 201 }
+        )
+      })
+    )
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    const confirmacao = await screen.findByRole("status")
+    expect(confirmacao).toHaveTextContent(
+      "Autorização do beneficiário BEN001 registrada em 06/11/2026 às 10:45."
+    )
+    expect(confirmacao).toHaveTextContent("Identificador na Central: aut-123")
+  })
+
+  it("mostra a autorização existente como já registrada", async () => {
+    server.use(
+      http.post("/api/autorizacoes", () =>
+        HttpResponse.json(
+          {
+            beneficiarioId: "BEN001",
+            autorizacaoId: "aut-123",
+            autorizadaEm: "2026-11-01T12:00:00Z",
+          },
+          { status: 200 }
+        )
+      )
+    )
+    const { user } = renderApp()
+
+    await preencherEEnviar(user, "BEN001")
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "O beneficiário BEN001 já tinha uma autorização registrada em 01/11/2026 às 09:00."
+    )
+  })
+})
+
+async function preencherEEnviar(
+  user: ReturnType<typeof renderApp>["user"],
+  beneficiarioId: string
+) {
+  await user.type(
+    await screen.findByLabelText("Identificador do beneficiário"),
+    beneficiarioId
+  )
+  await user.click(
+    screen.getByRole("checkbox", {
+      name: "O beneficiário autoriza a consulta da agenda e a portabilidade das parcelas",
+    })
+  )
+  await user.click(
+    screen.getByRole("button", { name: "Registrar autorização" })
+  )
+}

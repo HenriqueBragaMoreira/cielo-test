@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { resolve } from "node:path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
@@ -10,5 +11,13 @@ export default defineConfig({
     alias: {
       "@": resolve(import.meta.dirname, "./src"),
     },
+  },
+  server: {
+    // modo de desenvolvimento: backend local (ADR-0003)
+    proxy: { "/api": "http://localhost:8080" },
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
   },
 })
