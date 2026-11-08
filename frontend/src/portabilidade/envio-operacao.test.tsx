@@ -120,10 +120,10 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
     renderApp("/beneficiarios/BEN001/agenda")
 
-    const linha = await screen.findByRole("row", { name: /P003/ })
+    await screen.findByRole("row", { name: /P003/ })
     expect(selecao("P003")).toHaveAttribute("aria-disabled", "true")
     expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
-    expect(linha).toHaveTextContent(
+    expect(selecao("P003")).toHaveAccessibleDescription(
       "A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas."
     )
   })
@@ -144,9 +144,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     const linha = await screen.findByRole("row", { name: /P002/ })
     expect(selecao("P002")).toHaveAttribute("aria-disabled", "true")
     expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
-    expect(
-      within(linha).getByRole("cell", { name: /^P002/ })
-    ).toHaveTextContent(`P002${motivo}`)
+    expect(selecao("P002")).toHaveAccessibleDescription(motivo)
     expect(
       within(linha).getByRole("cell", { name: "Aberta · inelegível" })
     ).toBeVisible()

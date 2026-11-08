@@ -6,6 +6,7 @@ import { LoaderCircleIcon, TriangleAlertIcon } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { tituloSecao } from "@/lib/estilos"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { LinkVoltar } from "@/shell/link-voltar"
 
 import { consultarOperacao, type Operacao, type TipoEvento } from "./api"
 import { estadoDaOperacao } from "./estado-operacao"
@@ -56,12 +57,24 @@ export function OperacaoPage() {
       aria-busy={operacao.isPending}
       className="flex flex-col gap-6"
     >
-      <h1
-        id="titulo-operacao"
-        className="text-[1.75rem] leading-tight font-extrabold tracking-[-0.02em]"
-      >
-        Operação de portabilidade
-      </h1>
+      <div className="flex flex-col gap-4">
+        {operacao.data && (
+          <LinkVoltar
+            to="/beneficiarios/$beneficiarioId/agenda"
+            params={{
+              beneficiarioId: operacao.data.operacao.beneficiarioId,
+            }}
+          >
+            {`Agenda do ${operacao.data.operacao.beneficiarioId}`}
+          </LinkVoltar>
+        )}
+        <h1
+          id="titulo-operacao"
+          className="text-[1.75rem] leading-tight font-extrabold tracking-[-0.02em]"
+        >
+          Operação de portabilidade
+        </h1>
+      </div>
       {operacao.isPending && (
         <p className="text-sm text-muted-foreground">Carregando operação…</p>
       )}
@@ -143,8 +156,17 @@ function PainelSituacao({
     operacao.status === "REJEITADA" || operacao.status === "FALHA_ENVIO"
 
   return (
-    <div className={cn("rounded-xl p-6 ring-1 sm:p-8", superficie)}>
-      <div role="status" className="flex items-start gap-4">
+    // estado à esquerda, ações à direita: o painel tem a altura do conteúdo; num cartão estreito as ações descem
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-x-8 gap-y-5 rounded-xl p-5 ring-1 sm:px-7 sm:py-6",
+        superficie
+      )}
+    >
+      <div
+        role="status"
+        className="flex min-w-0 flex-1 basis-80 items-start gap-4"
+      >
         <Icone
           aria-hidden
           className={cn(
@@ -185,16 +207,9 @@ function PainelSituacao({
           )}
         </div>
       </div>
-      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 sm:pl-14">
+      <div className="flex flex-wrap items-center gap-3 sm:pl-14 md:pl-0">
         {pendente ? (
           <>
-            <Button
-              variant="outline"
-              disabled={atualizando}
-              onClick={onAtualizar}
-            >
-              Atualizar
-            </Button>
             {consultandoSozinha && (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span
@@ -204,6 +219,13 @@ function PainelSituacao({
                 Consultando a Central automaticamente
               </p>
             )}
+            <Button
+              variant="outline"
+              disabled={atualizando}
+              onClick={onAtualizar}
+            >
+              Atualizar
+            </Button>
           </>
         ) : (
           <>
@@ -211,7 +233,7 @@ function PainelSituacao({
               <Link
                 to="/beneficiarios/$beneficiarioId/agenda"
                 params={{ beneficiarioId: operacao.beneficiarioId }}
-                className={buttonVariants({ size: "lg" })}
+                className={buttonVariants()}
               >
                 Voltar à agenda
               </Link>
@@ -219,7 +241,6 @@ function PainelSituacao({
             <Link
               to="/"
               className={buttonVariants({
-                size: "lg",
                 variant: parcelasLiberadas ? "outline" : "default",
               })}
             >

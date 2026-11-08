@@ -24,6 +24,16 @@ describe("consultar a agenda", () => {
     ).toBeVisible()
   })
 
+  it("Trocar beneficiário volta para a autorização", async () => {
+    server.use(http.get(agendaBen001, () => HttpResponse.json([])))
+    const { user, router } = renderApp("/beneficiarios/BEN001/agenda")
+    await screen.findByText("O beneficiário não tem parcelas na agenda.")
+
+    await user.click(screen.getByRole("link", { name: "Trocar beneficiário" }))
+
+    expect(router.state.location.pathname).toBe("/")
+  })
+
   it("mostra cada parcela com convênio, data de desconto, valor e a situação em linguagem legível", async () => {
     server.use(
       http.get(agendaBen001, () =>
@@ -89,14 +99,17 @@ describe("consultar a agenda", () => {
     const linha = await screen.findByRole("row", { name: /P002/ })
     expect(linha).toHaveClass("text-muted-foreground")
     expect(
-      within(linha).getByRole("cell", { name: /^P002/ })
-    ).toHaveTextContent(`P002${motivo}`)
-    expect(
       within(linha).getByRole("cell", { name: "Quitada · inelegível" })
     ).toBeVisible()
-    expect(
-      within(linha).getByRole("checkbox", { name: "Selecionar a parcela P002" })
-    ).toHaveAttribute("aria-disabled", "true")
+    const selecao = within(linha).getByRole("checkbox", {
+      name: "Selecionar a parcela P002",
+    })
+    expect(selecao).toHaveAttribute("aria-disabled", "true")
+    expect(selecao).toHaveAccessibleDescription(motivo)
+    // o motivo vem na linha logo abaixo da parcela, também em cinza
+    const linhaDoMotivo = linha.nextElementSibling
+    expect(linhaDoMotivo).toHaveTextContent(motivo)
+    expect(linhaDoMotivo).toHaveClass("text-muted-foreground")
   })
 
   it("mostra a régua da agenda, oculta para leitores de tela, com o intervalo nas palavras-guia e cada parcela com valor, data e id", async () => {

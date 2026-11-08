@@ -1,4 +1,5 @@
 import { cn } from "cn"
+import { Fragment } from "react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -37,7 +38,9 @@ export function TabelaParcelas({
           <TableHead className={cn(cabecalho, soNaTelaLarga)}>
             Convênio
           </TableHead>
-          <TableHead className={cabecalho}>Data de desconto</TableHead>
+          <TableHead className={cn(cabecalho, "max-sm:whitespace-normal")}>
+            Data de desconto
+          </TableHead>
           <TableHead className={cn(cabecalho, "text-right")}>Valor</TableHead>
           <TableHead className={cn(cabecalho, soNaTelaLarga)}>
             Situação
@@ -47,53 +50,73 @@ export function TabelaParcelas({
       <TableBody>
         {parcelas.map((parcela) => {
           const selecionada = selecionadas.includes(parcela.parcelaId)
+          const motivoId = `motivo-${parcela.parcelaId}`
+          const inelegivel =
+            "bg-muted/70 text-muted-foreground hover:bg-muted/70"
           return (
-            <TableRow
-              key={parcela.parcelaId}
-              data-state={selecionada ? "selected" : undefined}
-              className={cn(
-                "align-top data-[state=selected]:bg-accent [&>td]:py-3",
-                !parcela.elegivel &&
-                  "bg-muted/70 text-muted-foreground hover:bg-muted/70"
-              )}
-            >
-              <TableCell>
-                <Checkbox
-                  aria-label={`Selecionar a parcela ${parcela.parcelaId}`}
-                  disabled={!parcela.elegivel}
-                  checked={selecionada}
-                  onCheckedChange={(marcada) =>
-                    onSelecionadasChange(
-                      marcada
-                        ? [...selecionadas, parcela.parcelaId]
-                        : selecionadas.filter((id) => id !== parcela.parcelaId)
-                    )
-                  }
-                />
-              </TableCell>
-              <TableCell className="whitespace-normal">
-                <span className="block font-semibold">{parcela.parcelaId}</span>
-                {parcela.motivoInelegibilidade && (
-                  <span className="mt-0.5 block max-w-80 min-w-36 text-xs sm:min-w-48">
-                    {parcela.motivoInelegibilidade}
-                  </span>
+            <Fragment key={parcela.parcelaId}>
+              <TableRow
+                data-state={selecionada ? "selected" : undefined}
+                className={cn(
+                  "align-top data-[state=selected]:bg-accent [&>td]:py-3",
+                  !parcela.elegivel && inelegivel,
+                  // o motivo vem na linha de baixo, colado nesta
+                  parcela.motivoInelegibilidade && "border-b-0 [&>td]:pb-1"
                 )}
-                {/* tela estreita: a situação desce para baixo da parcela, e a coluna dela sai */}
-                <span className="mt-0.5 block text-xs sm:hidden">
+              >
+                <TableCell>
+                  <Checkbox
+                    aria-label={`Selecionar a parcela ${parcela.parcelaId}`}
+                    aria-describedby={
+                      parcela.motivoInelegibilidade ? motivoId : undefined
+                    }
+                    disabled={!parcela.elegivel}
+                    checked={selecionada}
+                    onCheckedChange={(marcada) =>
+                      onSelecionadasChange(
+                        marcada
+                          ? [...selecionadas, parcela.parcelaId]
+                          : selecionadas.filter(
+                              (id) => id !== parcela.parcelaId
+                            )
+                      )
+                    }
+                  />
+                </TableCell>
+                <TableCell className="whitespace-normal">
+                  <span className="block font-semibold">
+                    {parcela.parcelaId}
+                  </span>
+                  {/* tela estreita: a situação desce para baixo da parcela, e a coluna dela sai */}
+                  <span className="mt-0.5 block text-xs sm:hidden">
+                    {situacao(parcela)}
+                  </span>
+                </TableCell>
+                <TableCell className={soNaTelaLarga}>
+                  {parcela.convenioId}
+                </TableCell>
+                <TableCell>{formatarData(parcela.dataDesconto)}</TableCell>
+                <TableCell className="text-right font-semibold">
+                  {formatarMoeda(parcela.valor)}
+                </TableCell>
+                <TableCell className={soNaTelaLarga}>
                   {situacao(parcela)}
-                </span>
-              </TableCell>
-              <TableCell className={soNaTelaLarga}>
-                {parcela.convenioId}
-              </TableCell>
-              <TableCell>{formatarData(parcela.dataDesconto)}</TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatarMoeda(parcela.valor)}
-              </TableCell>
-              <TableCell className={soNaTelaLarga}>
-                {situacao(parcela)}
-              </TableCell>
-            </TableRow>
+                </TableCell>
+              </TableRow>
+              {parcela.motivoInelegibilidade && (
+                // o motivo fica abaixo do id e corre sob as outras colunas: cabe numa linha sem alargar a da parcela
+                <TableRow className={cn(inelegivel, "[&>td]:pt-0 [&>td]:pb-3")}>
+                  <TableCell />
+                  <TableCell
+                    id={motivoId}
+                    colSpan={5}
+                    className="text-[0.6875rem] leading-4 whitespace-normal"
+                  >
+                    {parcela.motivoInelegibilidade}
+                  </TableCell>
+                </TableRow>
+              )}
+            </Fragment>
           )
         })}
       </TableBody>

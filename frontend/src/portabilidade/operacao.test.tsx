@@ -361,6 +361,21 @@ describe("tela da operação", () => {
     }
   )
 
+  it("em qualquer estado, o link acima do título volta à agenda do beneficiário", async () => {
+    consultasRespondidasCom(confirmada)
+    server.use(
+      http.get("/api/beneficiarios/BEN001/agenda", () => HttpResponse.json([]))
+    )
+    const { user, router } = renderApp(`/operacoes-portabilidade/${id}`)
+
+    await user.click(
+      await screen.findByRole("link", { name: "Agenda do BEN001" })
+    )
+
+    expect(router.state.location.pathname).toBe("/beneficiarios/BEN001/agenda")
+    await screen.findByText("O beneficiário não tem parcelas na agenda.")
+  })
+
   it("não oferece Voltar à agenda na operação confirmada", async () => {
     consultasRespondidasCom(confirmada)
     renderApp(`/operacoes-portabilidade/${id}`)

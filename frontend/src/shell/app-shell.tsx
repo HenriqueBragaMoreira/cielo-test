@@ -23,10 +23,13 @@ export function AppShell() {
     <div className="flex min-h-svh flex-col">
       <header className="bg-brand-navy text-white">
         <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-8 lg:py-0">
-          <Logo />
-          <p className="border-l border-white/30 pl-5 text-[0.9375rem] text-white/85">
-            Portabilidade de convênios
-          </p>
+          {/* a marca leva ao início do fluxo, de qualquer tela */}
+          <Link to="/" className="flex items-center gap-5 rounded-sm">
+            <Logo />
+            <span className="border-l border-white/30 pl-5 text-[0.9375rem] text-white/85">
+              Portabilidade de convênios
+            </span>
+          </Link>
           <div className="flex w-full items-center gap-7 lg:ml-auto lg:w-auto">
             {passoAtual && <Stepper atual={passoAtual} />}
             {/* depois do stepper, um divisor separa a navegação fixa dos passos */}

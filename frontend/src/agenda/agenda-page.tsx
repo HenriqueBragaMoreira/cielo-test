@@ -6,6 +6,7 @@ import { ConfirmacaoAutorizacao } from "@/autorizacao/confirmacao-autorizacao"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ErroApi } from "@/lib/api"
 import { EnvioOperacaoForm } from "@/portabilidade/envio-operacao-form"
+import { LinkVoltar } from "@/shell/link-voltar"
 
 import { consultarAgenda } from "./api"
 import { AgendaVazia, CartaoAgenda, PainelResumo, Workspace } from "./workspace"
@@ -26,14 +27,11 @@ export function AgendaPage() {
   })
 
   const cabecalho = (
-    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-      <h1 className="flex items-baseline gap-3">
-        <span className="text-sm font-semibold text-muted-foreground">
-          Beneficiário
-        </span>{" "}
-        <span className="text-[1.75rem] leading-tight font-extrabold tracking-[-0.02em]">
-          {beneficiarioId}
-        </span>
+    <div className="flex flex-col gap-4">
+      <LinkVoltar to="/">Trocar beneficiário</LinkVoltar>
+      <h1 className="text-[1.75rem] leading-tight tracking-[-0.02em]">
+        <span className="font-normal text-muted-foreground">Beneficiário</span>{" "}
+        <span className="font-extrabold">{beneficiarioId}</span>
       </h1>
       {registro && <ConfirmacaoAutorizacao registro={registro} />}
     </div>

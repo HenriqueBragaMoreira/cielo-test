@@ -102,6 +102,24 @@ describe("histórico de operações", () => {
     ).toEqual(["06/11/2026 às 09:30", "BEN002", "1", "R$ 1.500,00", "Pendente"])
   })
 
+  it("sai do histórico para uma nova portabilidade pelo cabeçalho ou pela marca", async () => {
+    historicoResponde(confirmada)
+    const { user, router } = renderApp("/historico")
+    await screen.findByRole("cell", { name: "BEN001" })
+
+    await user.click(screen.getByRole("link", { name: "Nova portabilidade" }))
+    expect(router.state.location.pathname).toBe("/")
+
+    await router.navigate({ to: "/historico" })
+    await screen.findByRole("cell", { name: "BEN001" })
+    await user.click(
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: /Portabilidade de convênios/,
+      })
+    )
+    expect(router.state.location.pathname).toBe("/")
+  })
+
   it("leva à operação a partir da linha", async () => {
     historicoResponde(confirmada, pendente)
     const { user, router } = renderApp("/historico")

@@ -210,7 +210,7 @@ Confiantes e contidos: cápsulas sem sombra.
 
 ### Tabela de parcelas
 - **Linha selecionada:** véu de ciano (`accent`).
-- **Linha inelegível:** fundo em névoa, texto em ardósia, caixa de seleção desabilitada com fundo em névoa e contorno claro; o motivo fica sempre logo abaixo do id da parcela.
+- **Linha inelegível:** fundo em névoa, texto em ardósia, caixa de seleção desabilitada com fundo em névoa e contorno claro. O motivo fica numa sublinha colada, logo abaixo do id da parcela, em 11px, e corre sob as outras colunas: cabe numa linha do tablet para cima sem alargar a coluna da parcela. A caixa de seleção aponta para ele (`aria-describedby`).
 - **Valores:** alinhados à direita, em algarismos tabulares.
 
 ### Inputs / Fields
@@ -219,9 +219,11 @@ Confiantes e contidos: cápsulas sem sombra.
 - **Error:** contorno vermelho com um véu de 20%; a mensagem fica logo abaixo do campo, em vermelho, 12px.
 
 ### Navigation
-- **Barra de topo:** azul-marinho, 64px. Wordmark branco à esquerda, separado por um divisor de "Portabilidade de convênios". À direita, o stepper (1 Autorização · 2 Parcelas e conta · 3 Acompanhamento) e o link "Histórico" depois de um divisor.
+- **Barra de topo:** azul-marinho, 64px. Wordmark branco à esquerda, separado por um divisor de "Portabilidade de convênios"; os dois juntos são o link para o início do fluxo, de qualquer tela. À direita, o stepper (1 Autorização · 2 Parcelas e conta · 3 Acompanhamento) e o link "Histórico" depois de um divisor.
 - **Stepper:** o passo atual em branco e negrito, com o número num círculo ciano e sublinhado ciano de 2px; os concluídos com um visto num círculo translúcido; os seguintes com o número num aro. Em telas estreitas, só o passo atual mostra o nome.
-- **Histórico:** branco a 75%; na página do histórico, branco em negrito com o mesmo sublinhado ciano.
+- **Histórico:** branco a 75%; na página do histórico, branco em negrito com o mesmo sublinhado ciano. O cabeçalho da página tem "Nova portabilidade" à direita do título, com ou sem operações na lista.
+- **Voltar:** cada etapa depois da autorização tem um link com seta, em ciano de ação, acima do título: "Trocar beneficiário" na agenda, "Agenda do BEN001" na operação.
+- **Cabeçalho do beneficiário:** "Beneficiário" em ardósia e o id em extrabold, no tamanho Title; abaixo, os dados da autorização como campos rotulados (Autorização, Identificador na Central), separados por um divisor, nunca uma frase corrida.
 
 ### Régua da agenda (assinatura)
 O eixo de meses é uma linha de 2px na tinta, com marcas altas no início de cada mês e curtas nos dias 10 e 20. "Hoje" é uma linha tracejada azul-marinho com o rótulo em cima. Cada parcela tem uma haste e um ponto na data de desconto, com o valor (15px, extrabold) e "dd/mm · id" acima. Estados: selecionada em ciano, elegível na tinta com o ponto vazado, inelegível em cinza opaco. O rótulo de uma parcela próxima demais de outra sobe para o nível mais baixo livre (até três níveis), e cada rótulo tem o fundo do cartão para a haste vizinha passar por trás. A régua é oculta para leitores de tela: a tabela é o controle.
@@ -230,7 +232,7 @@ O eixo de meses é uma linha de 2px na tinta, com marcas altas no início de cad
 A mesma gramática da régua: um eixo de 2px, uma haste e um ponto por evento, com o nome do evento e a data e hora acima. Os eventos de passagem ficam na tinta; o final, na cor do estado. Aqui a distância é a ordem, não a duração. Num cartão estreito (abaixo de 42rem) ou com mais de cinco eventos, o eixo fica de pé: cada evento vira uma linha, com o ponto no eixo e a haste deitada até o rótulo.
 
 ### Painel de situação
-O elemento dominante da operação: ícone de 40px e o estado em palavras no estilo Headline, na cor do estado, sobre um véu da mesma cor. Pendente é âmbar, confirmada é verde, rejeitada e falha no envio são vermelhas. Embaixo, a ação do estado: "Atualizar" e o indicador de consulta automática enquanto pendente; "Nova portabilidade" e, depois de rejeição ou falha no envio, "Voltar à agenda".
+O elemento dominante da operação: ícone de 40px e o estado em palavras no estilo Headline, na cor do estado, sobre um véu da mesma cor. Pendente é âmbar, confirmada é verde, rejeitada e falha no envio são vermelhas. O painel tem a altura do conteúdo: o estado à esquerda e as ações à direita, que só descem quando o cartão estreita. As ações do estado: "Atualizar" e o indicador de consulta automática enquanto pendente; "Nova portabilidade" e, depois de rejeição ou falha no envio, "Voltar à agenda".
 
 ## Do's and Don'ts
 

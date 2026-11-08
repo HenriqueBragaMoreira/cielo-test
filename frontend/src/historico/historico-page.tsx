@@ -31,17 +31,23 @@ export function HistoricoPage() {
       aria-labelledby="titulo-historico"
       className="flex w-full max-w-4xl flex-col gap-6"
     >
-      <div className="flex flex-col gap-2">
-        <h1
-          id="titulo-historico"
-          className="text-[1.75rem] leading-tight font-extrabold tracking-[-0.02em] text-balance"
-        >
-          Histórico de operações
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          As 50 operações mais recentes, da mais nova para a mais antiga. As
-          pendentes se atualizam quando você abre a operação.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="flex max-w-xl flex-col gap-2">
+          <h1
+            id="titulo-historico"
+            className="text-[1.75rem] leading-tight font-extrabold tracking-[-0.02em] text-balance"
+          >
+            Histórico de operações
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            As 50 operações mais recentes, da mais nova para a mais antiga. As
+            pendentes se atualizam quando você abre a operação.
+          </p>
+        </div>
+        {/* a saída do histórico para o começo do fluxo, com ou sem operações na lista */}
+        <Link to="/" className={buttonVariants()}>
+          Nova portabilidade
+        </Link>
       </div>
       <Card className="py-0" aria-busy={historico.isPending}>
         {historico.error ? (
@@ -64,9 +70,6 @@ export function HistoricoPage() {
             <p className="text-muted-foreground">
               As operações aparecem aqui assim que são registradas.
             </p>
-            <Link to="/" className={cn(buttonVariants(), "mt-3")}>
-              Nova portabilidade
-            </Link>
           </div>
         ) : (
           <TabelaHistorico operacoes={historico.data} />
