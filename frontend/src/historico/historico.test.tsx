@@ -59,6 +59,9 @@ describe("link do histórico na barra de topo", () => {
     expect(
       screen.queryByRole("list", { name: "Etapas da portabilidade" })
     ).not.toBeInTheDocument()
+    // espera a lista chegar: uma requisição ainda em voo no fim do teste vaza para o próximo (no Node 24 do CI,
+    // a requisição do teste seguinte escapa do MSW e vai para a rede real)
+    await screen.findByText("Nenhuma operação registrada ainda.")
   })
 })
 
