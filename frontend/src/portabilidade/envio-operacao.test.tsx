@@ -85,6 +85,37 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     ).toBeVisible()
   })
 
+  it("marcar uma parcela na tabela seleciona a marca dela na régua da agenda", async () => {
+    server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+    await screen.findByRole("row", { name: /P001/ })
+
+    expect(marcaNaRegua("10/01 · P001")).toHaveAttribute(
+      "data-estado",
+      "elegivel"
+    )
+    expect(marcaNaRegua("10/03 · P003")).toHaveAttribute(
+      "data-estado",
+      "inelegivel"
+    )
+
+    await user.click(selecao("P001"))
+    expect(marcaNaRegua("10/01 · P001")).toHaveAttribute(
+      "data-estado",
+      "selecionada"
+    )
+    expect(marcaNaRegua("10/02 · P002")).toHaveAttribute(
+      "data-estado",
+      "elegivel"
+    )
+
+    await user.click(selecao("P001"))
+    expect(marcaNaRegua("10/01 · P001")).toHaveAttribute(
+      "data-estado",
+      "elegivel"
+    )
+  })
+
   it("desabilita a seleção das parcelas inelegíveis e mostra o motivo", async () => {
     server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
     renderApp("/beneficiarios/BEN001/agenda")
@@ -491,6 +522,13 @@ function selecao(parcelaId: string) {
   return screen.getByRole("checkbox", {
     name: `Selecionar a parcela ${parcelaId}`,
   })
+}
+
+/** A régua é oculta para leitores de tela; a marca se acha pelo rótulo de data e id. */
+function marcaNaRegua(rotulo: string) {
+  return within(screen.getByTestId("regua-agenda"))
+    .getByText(rotulo)
+    .closest("[data-estado]")
 }
 
 function resumo() {

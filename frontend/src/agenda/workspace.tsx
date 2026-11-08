@@ -26,10 +26,14 @@ export function Workspace({
 }
 
 export function CartaoAgenda({
+  palavrasGuia,
   className,
   children,
   ...props
-}: ComponentProps<"section">) {
+}: ComponentProps<"section"> & {
+  /** O primeiro e o último mês da régua da agenda. */
+  palavrasGuia?: string
+}) {
   return (
     <section
       aria-labelledby="agenda-titulo"
@@ -43,7 +47,7 @@ export function CartaoAgenda({
         <h2 id="agenda-titulo" className={tituloSecao}>
           Agenda de descontos
         </h2>
-        {/* palavras-guia com o primeiro e o último mês da régua (#28) */}
+        {palavrasGuia && <p className={tituloSecao}>{palavrasGuia}</p>}
       </div>
       {children}
     </section>

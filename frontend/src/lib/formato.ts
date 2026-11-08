@@ -29,3 +29,10 @@ export function formatarMoeda(valor: number) {
 export function formatarData(isoData: string) {
   return isoData.split("-").reverse().join("/")
 }
+
+const dataIso = new Intl.DateTimeFormat("en-CA", { timeZone: fusoHorario })
+
+/** A data de hoje em Brasília, como `AAAA-MM-DD`. */
+export function hojeEmBrasilia() {
+  return dataIso.format(new Date())
+}

@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react"
 import { delay, http, HttpResponse } from "msw"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderApp } from "@/test/render-app"
 import { server } from "@/test/server"
@@ -8,6 +8,10 @@ import { server } from "@/test/server"
 const agendaBen001 = "/api/beneficiarios/BEN001/agenda"
 
 describe("consultar a agenda", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it("mostra o beneficiário no cabeçalho do workspace", async () => {
     server.use(http.get(agendaBen001, () => HttpResponse.json([])))
     renderApp("/beneficiarios/BEN001/agenda")
@@ -93,6 +97,50 @@ describe("consultar a agenda", () => {
     expect(
       within(linha).getByRole("checkbox", { name: "Selecionar a parcela P002" })
     ).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("mostra a régua da agenda, oculta para leitores de tela, com o intervalo nas palavras-guia e cada parcela com valor, data e id", async () => {
+    // só o relógio: o eixo começa no mês de hoje
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2025-11-08T12:00:00-03:00"))
+    server.use(
+      http.get(agendaBen001, () =>
+        HttpResponse.json([
+          {
+            parcelaId: "P001",
+            convenioId: "CONV01",
+            valor: 150,
+            dataDesconto: "2026-01-10",
+            status: "ABERTA",
+            elegivel: true,
+            motivoInelegibilidade: null,
+          },
+          {
+            parcelaId: "P002",
+            convenioId: "CONV01",
+            valor: 300,
+            dataDesconto: "2026-02-10",
+            status: "QUITADA",
+            elegivel: false,
+            motivoInelegibilidade: "Quitada.",
+          },
+        ])
+      )
+    )
+    renderApp("/beneficiarios/BEN001/agenda")
+    await screen.findByRole("row", { name: /P001/ })
+
+    const agenda = screen.getByRole("region", { name: "Agenda de descontos" })
+    expect(within(agenda).getByText("nov 2025 — mar 2026")).toBeVisible()
+    const regua = within(agenda).getByTestId("regua-agenda")
+    expect(regua).toHaveAttribute("aria-hidden", "true")
+    expect(within(regua).getByText("hoje")).toBeInTheDocument()
+    expect(within(regua).getByText("jan 2026")).toBeInTheDocument()
+    expect(within(regua).getByText("10/01 · P001")).toBeInTheDocument()
+    expect(within(regua).getByText(/^R\$\s150,00$/)).toBeInTheDocument()
+    expect(
+      within(regua).getByText("10/02 · P002").closest("[data-estado]")
+    ).toHaveAttribute("data-estado", "inelegivel")
   })
 
   it("mostra uma mensagem própria para a agenda vazia", async () => {

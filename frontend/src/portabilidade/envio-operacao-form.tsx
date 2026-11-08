@@ -6,13 +6,15 @@ import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
 import type { Parcela } from "@/agenda/api"
+import { montarEixo } from "@/agenda/regua"
+import { ReguaAgenda } from "@/agenda/regua-agenda"
 import { TabelaParcelas } from "@/agenda/tabela-parcelas"
 import { CartaoAgenda, PainelResumo, Workspace } from "@/agenda/workspace"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ErroApi } from "@/lib/api"
-import { formatarData, formatarMoeda } from "@/lib/formato"
+import { formatarData, formatarMoeda, hojeEmBrasilia } from "@/lib/formato"
 
 import { enviarOperacao } from "./api"
 
@@ -71,6 +73,10 @@ export function EnvioOperacaoForm({
   const convenios = [
     ...new Set(escolhidas.map((parcela) => parcela.convenioId)),
   ].join(", ")
+  const eixo = montarEixo(
+    parcelas.map((parcela) => parcela.dataDesconto),
+    hojeEmBrasilia()
+  )
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const envio = useMutation({
@@ -116,8 +122,12 @@ export function EnvioOperacaoForm({
     <Workspace
       cabecalho={cabecalho}
       agenda={
-        <CartaoAgenda>
-          {/* régua da agenda (#28): espelha `parcelas` e a seleção `selecionadas` */}
+        <CartaoAgenda palavrasGuia={eixo.palavrasGuia}>
+          <ReguaAgenda
+            eixo={eixo}
+            parcelas={parcelas}
+            selecionadas={selecionadas}
+          />
           <Controller
             control={form.control}
             name="parcelaIds"
