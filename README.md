@@ -225,7 +225,7 @@ Só bibliotecas externas ao Java, ao Node e ao próprio React. A assinatura HMAC
 | `cn` | Junção condicional de classes nos componentes de UI |
 | `tw-animate-css` | Animações usadas pelos componentes shadcn/ui |
 | `lucide-react` | Ícones |
-| `@fontsource-variable/noto-sans` | Fonte empacotada no build, sem depender de CDN |
+| `@fontsource-variable/nunito-sans` | Fonte da identidade visual (Nunito Sans) empacotada no build, sem depender de CDN |
 | `vite` + `@vitejs/plugin-react` (dev) | Servidor de desenvolvimento com proxy de `/api` e build de produção |
 | `typescript` + `@types/*` (dev) | Tipagem de ponta a ponta |
 | `vitest` + `jsdom` (dev) | Testes de componente rápidos, no mesmo pipeline do Vite |

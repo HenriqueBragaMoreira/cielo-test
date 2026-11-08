@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
+import { CircleAlertIcon, Loader2Icon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,59 +42,86 @@ export function AutorizacaoPage() {
   })
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Autorização do beneficiário</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={form.handleSubmit((dados) => registro.mutate(dados))}
+    <section
+      aria-labelledby="titulo-autorizacao"
+      className="mx-auto flex w-full max-w-md flex-col gap-6 pt-6 sm:pt-14"
+    >
+      <div className="flex flex-col gap-2">
+        <h1
+          id="titulo-autorizacao"
+          className="text-[1.75rem] leading-tight font-extrabold tracking-[-0.02em] text-balance"
         >
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="beneficiarioId">
-              Identificador do beneficiário
-            </Label>
-            <Input
-              id="beneficiarioId"
-              autoComplete="off"
-              {...form.register("beneficiarioId")}
+          Autorização do beneficiário
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Registre a autorização na Central de Convênios para consultar a agenda
+          de descontos.
+        </p>
+      </div>
+      <Card>
+        <CardContent>
+          <form
+            aria-busy={registro.isPending}
+            className="flex flex-col gap-6 py-1"
+            onSubmit={form.handleSubmit((dados) => registro.mutate(dados))}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="beneficiarioId">
+                Identificador do beneficiário
+              </Label>
+              <Input
+                id="beneficiarioId"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-11"
+                {...form.register("beneficiarioId")}
+              />
+            </div>
+            <Controller
+              control={form.control}
+              name="aceite"
+              render={({ field }) => (
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="aceite"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
+                  <Label htmlFor="aceite" className="leading-snug font-normal">
+                    O beneficiário autoriza a consulta da agenda e a
+                    portabilidade das parcelas
+                  </Label>
+                </div>
+              )}
             />
+            <Button
+              type="submit"
+              size="lg"
+              disabled={!form.formState.isValid || registro.isPending}
+            >
+              {registro.isPending && (
+                <Loader2Icon aria-hidden className="animate-spin" />
+              )}
+              Registrar autorização
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      {registro.error && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-lg bg-destructive/8 p-4 text-sm text-destructive"
+        >
+          <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <div className="flex flex-col gap-1">
+            <p className="font-bold">
+              Não foi possível registrar a autorização.
+            </p>
+            <p>{registro.error.message}</p>
           </div>
-          <Controller
-            control={form.control}
-            name="aceite"
-            render={({ field }) => (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="aceite"
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  onBlur={field.onBlur}
-                />
-                <Label htmlFor="aceite">
-                  O beneficiário autoriza a consulta da agenda e a portabilidade
-                  das parcelas
-                </Label>
-              </div>
-            )}
-          />
-          <Button
-            type="submit"
-            disabled={!form.formState.isValid || registro.isPending}
-          >
-            Registrar autorização
-          </Button>
-        </form>
-        {registro.error && (
-          <p
-            role="alert"
-            className="mt-4 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
-          >
-            {registro.error.message}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </section>
   )
 }

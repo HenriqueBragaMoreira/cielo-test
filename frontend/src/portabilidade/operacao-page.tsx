@@ -94,7 +94,7 @@ function AvisoAtualizacao({ operacao }: { operacao: Operacao }) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2 rounded-lg border border-amber-600/50 p-3 text-sm text-amber-700 dark:text-amber-400"
+      className="flex items-start gap-2 rounded-lg border border-amber-600/50 p-3 text-sm text-amber-700"
     >
       <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
       <p>
@@ -140,7 +140,7 @@ function SituacaoOperacao({
       return (
         <div
           role="status"
-          className="flex items-start gap-2 rounded-lg border border-emerald-600/50 p-3 text-sm text-emerald-700 dark:text-emerald-400"
+          className="flex items-start gap-2 rounded-lg border border-emerald-600/50 p-3 text-sm text-emerald-700"
         >
           <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
           <div>
