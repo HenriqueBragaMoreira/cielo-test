@@ -53,6 +53,17 @@ const rejeitada: Operacao = {
   ],
 }
 
+const falhaEnvio: Operacao = {
+  ...pendente,
+  status: "FALHA_ENVIO",
+  protocolo: null,
+  parcelas: [{ parcelaId: "P001", valor: 150.5 }],
+  eventos: [
+    { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
+    { tipo: "FALHA_ENVIO", dataHora: "2026-11-06T13:45:05Z", detalhe: null },
+  ],
+}
+
 /**
  * Como o backend responde: `Retry-After` só enquanto a operação está PENDENTE e a Central ainda reconhece o
  * protocolo.
@@ -92,56 +103,68 @@ describe("tela da operação", () => {
     vi.useRealTimers()
   })
 
-  it("abre pelo endereço da operação, com o total das parcelas", async () => {
+  it("abre pelo endereço da operação com o detalhe do pedido, sem repetir o status cru", async () => {
     server.use(http.get(url, () => responder(pendente)))
     renderApp(`/operacoes-portabilidade/${id}`)
 
-    expect(await screen.findByText("prot-123")).toBeVisible()
-    expect(screen.getByText("PENDENTE")).toBeVisible()
-    expect(screen.getByText("BEN001")).toBeVisible()
-    expect(screen.getByRole("row", { name: /Total/ })).toHaveTextContent(
-      /R\$\s450,50/
+    const detalhe = await screen.findByRole("region", {
+      name: "Resumo da operação",
+    })
+    expect(detalhe).toHaveTextContent("Protocoloprot-123")
+    expect(detalhe).toHaveTextContent("BeneficiárioBEN001")
+    expect(detalhe).toHaveTextContent(
+      "Conta de recebimento de destinoBanco 001 · Agência 1234 · Conta 56789-0"
     )
+    expect(detalhe).toHaveTextContent(/P001R\$\s150,50/)
+    expect(detalhe).toHaveTextContent(/P002R\$\s300,00/)
+    expect(detalhe).toHaveTextContent(/Total da operaçãoR\$\s450,50/)
+    expect(screen.queryByText("PENDENTE")).not.toBeInTheDocument()
+  })
+
+  it("enquanto pendente, mostra que consulta a Central sozinha e anuncia a decisão no mesmo status", async () => {
+    consultasRespondidasCom(pendente, confirmada)
+    const { user } = renderApp(`/operacoes-portabilidade/${id}`)
+
+    const status = await screen.findByRole("status")
+    expect(status).toHaveTextContent(
+      "Aguardando a decisão da Central de Convênios…"
+    )
+    expect(
+      screen.getByText("Consultando a Central automaticamente")
+    ).toBeVisible()
+
+    await user.click(screen.getByRole("button", { name: "Atualizar" }))
+
+    expect(await screen.findByText("Operação confirmada")).toBeVisible()
+    expect(screen.getByRole("status")).toBe(status)
+    expect(
+      screen.queryByText("Consultando a Central automaticamente")
+    ).not.toBeInTheDocument()
   })
 
   it("mostra a falha no envio, com as parcelas liberadas, e a falha na linha do tempo", async () => {
-    const operacao: Operacao = {
-      id,
-      beneficiarioId: "BEN001",
-      status: "FALHA_ENVIO",
-      protocolo: null,
-      motivoRejeicao: null,
-      parcelas: [{ parcelaId: "P001", valor: 150.5 }],
-      contaDestino: {
-        banco: "001",
-        agencia: "1234",
-        conta: "56789",
-        digito: "0",
-      },
-      eventos: [
-        { tipo: "SOLICITADA", dataHora: "2026-11-06T13:45:00Z", detalhe: null },
-        { tipo: "FALHA_ENVIO", dataHora: "2026-11-06T13:45:05Z", detalhe: null },
-      ],
-      avisoAtualizacao: null,
-    }
-    server.use(
-      http.get(`/api/operacoes-portabilidade/${id}`, () =>
-        HttpResponse.json(operacao)
-      )
-    )
+    consultasRespondidasCom(falhaEnvio)
+    renderApp(`/operacoes-portabilidade/${id}`)
+
+    const status = await screen.findByRole("status")
+    expect(status).toHaveTextContent("Falha no envio")
+    expect(status).toHaveTextContent("As parcelas ficaram liberadas.")
+    const eventos = linhaDoTempo()
+    expect(eventos).toHaveLength(2)
+    expect(eventos[0]).toHaveTextContent("Solicitada06/11/2026 às 10:45")
+    expect(eventos[1]).toHaveTextContent("Falha no envio06/11/2026 às 10:45")
+  })
+
+  it("sem eventos, mostra a situação e omite a linha do tempo", async () => {
+    consultasRespondidasCom({ ...confirmada, eventos: [] })
     renderApp(`/operacoes-portabilidade/${id}`)
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Falha no envioA Central de Convênios não respondeu e a operação não foi enviada. As parcelas ficaram liberadas."
+      "Operação confirmada"
     )
-    const linhaDoTempo = within(
-      screen.getByRole("list", { name: "Linha do tempo" })
-    ).getAllByRole("listitem")
-    expect(linhaDoTempo).toHaveLength(2)
-    expect(linhaDoTempo[0]).toHaveTextContent("Solicitada06/11/2026 às 10:45")
-    expect(linhaDoTempo[1]).toHaveTextContent(
-      "Falha no envio06/11/2026 às 10:45"
-    )
+    expect(
+      screen.queryByRole("list", { name: "Linha do tempo" })
+    ).not.toBeInTheDocument()
   })
 
   it("mostra a mensagem quando a operação não existe", async () => {
@@ -252,7 +275,9 @@ describe("tela da operação", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Não foi possível atualizar o status da operação; tentando novamente."
     )
-    expect(screen.getByText("PENDENTE")).toBeVisible()
+    expect(
+      screen.getByText("Aguardando a decisão da Central de Convênios…")
+    ).toBeVisible()
     expect(linhaDoTempo()).toHaveLength(2)
 
     await vi.advanceTimersByTimeAsync(2000)
@@ -275,11 +300,90 @@ describe("tela da operação", () => {
       "A Central de Convênios não reconhece mais o protocolo prot-123."
     )
     expect(aviso).not.toHaveTextContent("tentando novamente")
-    expect(screen.getByText("PENDENTE")).toBeVisible()
+    expect(
+      screen.getByText("Aguardando a decisão da Central de Convênios…")
+    ).toBeVisible()
+    // sem Retry-After não há consulta automática a anunciar
+    expect(
+      screen.queryByText("Consultando a Central automaticamente")
+    ).not.toBeInTheDocument()
 
     await vi.advanceTimersByTimeAsync(10_000)
     expect(contador.consultas).toBe(1)
     expect(screen.getByRole("button", { name: "Atualizar" })).toBeEnabled()
+  })
+
+  it.each([confirmada, rejeitada, falhaEnvio])(
+    "oferece Nova portabilidade na operação $status",
+    async (operacao) => {
+      consultasRespondidasCom(operacao)
+      const { user, router } = renderApp(`/operacoes-portabilidade/${id}`)
+
+      await user.click(
+        await screen.findByRole("link", { name: "Nova portabilidade" })
+      )
+
+      expect(router.state.location.pathname).toBe("/")
+    }
+  )
+
+  it("não oferece as saídas enquanto a operação está pendente", async () => {
+    consultasRespondidasCom(pendente)
+    renderApp(`/operacoes-portabilidade/${id}`)
+    await screen.findByRole("button", { name: "Atualizar" })
+
+    expect(
+      screen.queryByRole("link", { name: "Nova portabilidade" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Voltar à agenda" })
+    ).not.toBeInTheDocument()
+  })
+
+  it.each([rejeitada, falhaEnvio])(
+    "na operação $status, Voltar à agenda leva à agenda do beneficiário",
+    async (operacao) => {
+      consultasRespondidasCom(operacao)
+      server.use(
+        http.get("/api/beneficiarios/BEN001/agenda", () =>
+          HttpResponse.json([])
+        )
+      )
+      const { user, router } = renderApp(`/operacoes-portabilidade/${id}`)
+
+      await user.click(
+        await screen.findByRole("link", { name: "Voltar à agenda" })
+      )
+
+      expect(router.state.location.pathname).toBe(
+        "/beneficiarios/BEN001/agenda"
+      )
+    }
+  )
+
+  it("em qualquer estado, o link acima do título volta à agenda do beneficiário", async () => {
+    consultasRespondidasCom(confirmada)
+    server.use(
+      http.get("/api/beneficiarios/BEN001/agenda", () => HttpResponse.json([]))
+    )
+    const { user, router } = renderApp(`/operacoes-portabilidade/${id}`)
+
+    await user.click(
+      await screen.findByRole("link", { name: "Agenda do BEN001" })
+    )
+
+    expect(router.state.location.pathname).toBe("/beneficiarios/BEN001/agenda")
+    await screen.findByText("O beneficiário não tem parcelas na agenda.")
+  })
+
+  it("não oferece Voltar à agenda na operação confirmada", async () => {
+    consultasRespondidasCom(confirmada)
+    renderApp(`/operacoes-portabilidade/${id}`)
+    await screen.findByRole("link", { name: "Nova portabilidade" })
+
+    expect(
+      screen.queryByRole("link", { name: "Voltar à agenda" })
+    ).not.toBeInTheDocument()
   })
 
   it("o botão Atualizar consulta sob demanda", async () => {

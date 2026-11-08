@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:'Nunito Sans',sans-serif;background:#F5F7FA;color:#14295A;font-variant-numeric:tabular-nums}
+header{height:60px;background:#fff;border-bottom:1px solid #DCE3ED;display:flex;align-items:center;gap:28px;padding:0 32px}
+.logo{font-weight:800;font-size:28px;color:#1E4B8C}.logo b{color:#12A5E3}
+header nav{display:flex;gap:24px;font-size:14px;color:#4A5D78}header nav .on{color:#14295A;font-weight:800}
+main{display:grid;grid-template-columns:1fr 460px;gap:24px;padding:28px 32px}
+h1{font-size:26px;font-weight:800;margin-bottom:6px}.sub{font-size:13px;color:#4A5D78;margin-bottom:22px}
+.card{background:#fff;border-radius:12px;padding:8px 24px;box-shadow:0 1px 0 #DCE3ED}
+table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;font-size:12px;color:#4A5D78;padding:14px 8px;border-bottom:1px solid #DCE3ED}
+td{padding:16px 8px;border-bottom:1px solid #EEF2F7}.r{text-align:right}
+aside{background:#14295A;color:#F5F7FA;border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:18px}
+aside h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+.big{font-size:22px;font-weight:800}
+svg text{font-family:'Nunito Sans';font-size:13px;fill:#F5F7FA}
+dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px}dt{opacity:.65}dd{text-align:right;font-weight:600}
+.total{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid rgba(255,255,255,.15);padding-top:14px}.total b{font-size:32px}
+button{height:44px;border-radius:22px;border:1px solid #12A5E3;background:transparent;color:#fff;font-weight:800;font-family:inherit}
+footer{position:absolute;bottom:12px;left:32px;font-size:11px;color:#8A97A8}
+</style></head><body>
+<header><span class="logo">ciel<b>o</b></span><nav><span class="on">Nova portabilidade</span><span>Histórico</span></nav></header>
+<main>
+<section><h1>BEN001</h1><p class="sub">Autorização registrada em 07/11/2026 14:02 · 2 parcelas na agenda</p>
+<div class="card"><table><thead><tr><th>Parcela</th><th>Convênio</th><th>Desconto em</th><th class="r">Valor</th><th>Situação</th></tr></thead>
+<tbody><tr><td>P001</td><td>CONV01</td><td>10/01/2026</td><td class="r">R$ 150,00</td><td>Em operação</td></tr>
+<tr><td>P002</td><td>CONV01</td><td>10/02/2026</td><td class="r">R$ 150,00</td><td>Em operação</td></tr></tbody></table></div></section>
+<aside>
+<h2>Operação 7f3c…a21</h2>
+<p class="big">Aguardando a decisão da Central</p>
+<svg viewBox="0 0 400 230" width="400" height="230">
+<path d="M20 40 H150 L190 80 H250" stroke="#12A5E3" stroke-width="8" fill="none" stroke-linecap="round"/>
+<path d="M250 80 L290 40 H380" stroke="#1A7F4B" stroke-width="8" fill="none" stroke-linecap="round" opacity=".45"/>
+<path d="M250 80 L290 120 H380" stroke="#C0392B" stroke-width="8" fill="none" stroke-linecap="round" opacity=".45"/>
+<path d="M150 40 L150 170 H250" stroke="#D8A021" stroke-width="6" fill="none" stroke-dasharray="4 8" opacity=".55"/>
+<circle cx="20" cy="40" r="10" fill="#F5F7FA" stroke="#12A5E3" stroke-width="4"/>
+<circle cx="150" cy="40" r="10" fill="#F5F7FA" stroke="#12A5E3" stroke-width="4"/>
+<circle cx="250" cy="80" r="14" fill="#12A5E3" stroke="#F5F7FA" stroke-width="4"/>
+<circle cx="380" cy="40" r="10" fill="#14295A" stroke="#1A7F4B" stroke-width="4"/>
+<circle cx="380" cy="120" r="10" fill="#14295A" stroke="#C0392B" stroke-width="4"/>
+<text x="4" y="20">Solicitada</text><text x="128" y="20">Enviada</text><text x="212" y="112">Decisão</text>
+<text x="320" y="20">Confirmada</text><text x="320" y="150">Rejeitada</text><text x="160" y="196">Falha no envio</text>
+</svg>
+<dl><dt>Protocolo</dt><dd>9b1e…04c</dd><dt>Conta de destino</dt><dd>341 · 0001 · 123456-7</dd></dl>
+<div class="total"><span>Total</span><b>R$ 300,00</b></div>
+<button>Atualizar agora</button>
+</aside></main>
+<footer>Projeto de avaliação técnica, sem vínculo oficial com a Cielo.</footer>
+</body></html>

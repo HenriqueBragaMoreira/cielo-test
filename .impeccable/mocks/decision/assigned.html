@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:'Nunito Sans',sans-serif;background:#F3F6FA;color:#10233F;font-variant-numeric:tabular-nums}
+header{height:64px;background:#1E4B8C;color:#fff;display:flex;align-items:center;padding:0 32px;gap:24px}
+.logo{font-weight:800;font-size:28px;letter-spacing:-.5px}.logo b{color:#12A5E3}
+.prod{font-size:15px;opacity:.85;border-left:1px solid rgba(255,255,255,.3);padding-left:20px}
+nav.steps{margin-left:auto;display:flex;gap:28px;font-size:14px}
+nav.steps span{opacity:.6}nav.steps .on{opacity:1;font-weight:700;border-bottom:2px solid #12A5E3;padding-bottom:4px}
+nav.steps .done{opacity:.85}
+main{display:grid;grid-template-columns:1fr 400px;gap:24px;padding:28px 32px}
+.who{display:flex;align-items:baseline;gap:16px;margin-bottom:20px}
+.who h1{font-size:28px;font-weight:800}.who small{font-size:13px;color:#4A5D78}
+.ok{font-size:13px;color:#1A7F4B;font-weight:600}
+.agenda{background:#fff;border-radius:12px;padding:24px 28px;box-shadow:0 1px 0 #DDE4EE}
+.guide{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#4A5D78}
+.ruler{position:relative;height:120px;margin:16px 0 28px;border-bottom:2px solid #10233F}
+.tick{position:absolute;bottom:-2px;width:1px;background:#B8C4D4;height:8px}
+.month{position:absolute;bottom:-26px;font-size:12px;font-weight:700;color:#10233F}
+.mtick{position:absolute;bottom:-2px;width:2px;background:#10233F;height:18px}
+.mark{position:absolute;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px}
+.mark .v{font-size:15px;font-weight:800}
+.mark .d{font-size:11px;color:#4A5D78}
+.mark .stem{width:3px;height:44px;background:#12A5E3;border-radius:2px}
+.mark .dot{width:18px;height:18px;border-radius:50%;background:#12A5E3;border:3px solid #fff;box-shadow:0 0 0 2px #12A5E3}
+.mark.off .stem,.mark.off .dot{background:#C3CBD6;box-shadow:0 0 0 2px #C3CBD6}.mark.off .v{color:#8A97A8}
+.today{position:absolute;bottom:-2px;top:20px;border-left:1px dashed #1E4B8C}
+.today i{position:absolute;top:-18px;left:4px;font-size:11px;font-style:normal;color:#1E4B8C;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:44px}
+th{text-align:left;font-size:12px;color:#4A5D78;font-weight:700;padding:10px 8px;border-bottom:1px solid #DDE4EE}
+td{padding:14px 8px;border-bottom:1px solid #EEF2F7}
+td.r,th.r{text-align:right}
+.cb{width:18px;height:18px;border-radius:4px;border:2px solid #1E4B8C;display:inline-block;vertical-align:middle}
+.cb.on{background:#1E4B8C}
+tr.off td{color:#8A97A8}.why{font-size:12px;color:#8A97A8}
+aside{background:#fff;border-radius:12px;padding:28px;box-shadow:0 1px 0 #DDE4EE;align-self:start;display:flex;flex-direction:column;gap:20px}
+aside h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#4A5D78}
+.total small{font-size:13px;color:#4A5D78}.total p{font-size:44px;font-weight:800;letter-spacing:-1px}
+.sel{font-size:14px;display:flex;justify-content:space-between;border-top:1px solid #EEF2F7;padding-top:12px}
+.fields{display:grid;grid-template-columns:80px 90px 1fr 56px;gap:10px}
+.f label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
+.f div{height:40px;border:1px solid #B8C4D4;border-radius:8px;padding:10px;font-size:14px}
+button{height:48px;border:0;border-radius:24px;background:#12A5E3;color:#fff;font-weight:800;font-size:16px;font-family:inherit}
+.note{font-size:12px;color:#4A5D78}
+footer{position:absolute;bottom:12px;left:32px;font-size:11px;color:#8A97A8}
+</style></head><body>
+<header><span class="logo">ciel<b>o</b></span><span class="prod">Portabilidade de convênios</span>
+<nav class="steps"><span class="done">1 Autorização ✓</span><span class="on">2 Parcelas e conta</span><span>3 Acompanhamento</span><span>Histórico</span></nav></header>
+<main>
+<section>
+<div class="who"><h1>BEN001</h1><small>Beneficiário</small><span class="ok">● Autorização registrada em 07/11/2026 14:02</span></div>
+<div class="agenda">
+<div class="guide"><span>Agenda de descontos</span><span>nov 2025 — mar 2026</span></div>
+<div class="ruler">
+<div class="mtick" style="left:0%"></div><span class="month" style="left:0%">nov</span>
+<div class="mtick" style="left:24.5%"></div><span class="month" style="left:24.5%">dez</span>
+<div class="mtick" style="left:49.8%"></div><span class="month" style="left:49.8%">jan 2026</span>
+<div class="mtick" style="left:75.2%"></div><span class="month" style="left:75.2%">fev</span>
+<div class="tick" style="left:8%"></div><div class="tick" style="left:16%"></div><div class="tick" style="left:33%"></div><div class="tick" style="left:41%"></div><div class="tick" style="left:58%"></div><div class="tick" style="left:66%"></div><div class="tick" style="left:83%"></div><div class="tick" style="left:91%"></div>
+<div class="today" style="left:5.5%"><i>hoje</i></div>
+<div class="mark" style="left:57.9%"><span class="v">R$ 150,00</span><span class="d">10/01 · P001</span><span class="stem"></span><span class="dot"></span></div>
+<div class="mark" style="left:83.4%"><span class="v">R$ 150,00</span><span class="d">10/02 · P002</span><span class="stem"></span><span class="dot"></span></div>
+</div>
+<table><thead><tr><th></th><th>Parcela</th><th>Convênio</th><th>Desconto em</th><th class="r">Valor</th><th>Situação</th></tr></thead>
+<tbody>
+<tr><td><span class="cb on"></span></td><td>P001</td><td>CONV01</td><td>10/01/2026</td><td class="r">R$ 150,00</td><td>Elegível</td></tr>
+<tr><td><span class="cb on"></span></td><td>P002</td><td>CONV01</td><td>10/02/2026</td><td class="r">R$ 150,00</td><td>Elegível</td></tr>
+</tbody></table>
+</div>
+</section>
+<aside>
+<h2>Resumo da operação</h2>
+<div class="total"><small>Total a portar</small><p>R$ 300,00</p></div>
+<div class="sel"><span>2 parcelas · CONV01</span><span>10/01 → 10/02</span></div>
+<h2>Conta de recebimento</h2>
+<div class="fields"><div class="f"><label>Banco</label><div>341</div></div><div class="f"><label>Agência</label><div>0001</div></div><div class="f"><label>Conta</label><div>123456</div></div><div class="f"><label>Dígito</label><div>7</div></div></div>
+<button>Enviar portabilidade</button>
+<p class="note">Reenviar o mesmo pedido não cria outra operação.</p>
+</aside>
+</main>
+<footer>Projeto de avaliação técnica, sem vínculo oficial com a Cielo.</footer>
+</body></html>

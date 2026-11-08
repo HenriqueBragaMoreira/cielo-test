@@ -1,1 +1,5 @@
 .claude/settings.local.json
+# capturas da revisão do impeccable: evidência local, refeitas a cada revisão
+.impeccable/review/
+# worktrees dos agentes do Claude Code: locais, nunca versionadas
+.claude/worktrees/

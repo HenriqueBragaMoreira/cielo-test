@@ -60,30 +60,71 @@ const operacaoPendente: Operacao = {
 }
 
 describe("enviar uma operação de portabilidade a partir da agenda", () => {
-  it("soma o valor das parcelas selecionadas", async () => {
+  it("o resumo mostra o total, a quantidade e o intervalo das parcelas selecionadas", async () => {
     server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
     const { user } = renderApp("/beneficiarios/BEN001/agenda")
 
-    const total = await screen.findByText(/^Total selecionado:/)
-    expect(total).toHaveTextContent(/^Total selecionado: R\$\s0,00$/)
+    await screen.findByRole("row", { name: /P001/ })
+    expect(selecaoAnunciada()).toHaveTextContent(/Total a portar\s*R\$\s0,00/)
+    expect(selecaoAnunciada()).toHaveTextContent("Nenhuma parcela selecionada")
 
     await user.click(selecao("P001"))
     await user.click(selecao("P002"))
-    expect(total).toHaveTextContent(/^Total selecionado: R\$\s450,50$/)
+    expect(selecaoAnunciada()).toHaveTextContent(/Total a portar\s*R\$\s450,50/)
+    expect(selecaoAnunciada()).toHaveTextContent("2 parcelas · CONV01")
+    expect(selecaoAnunciada()).toHaveTextContent("10/01/2026 → 10/02/2026")
 
     await user.click(selecao("P001"))
-    expect(total).toHaveTextContent(/^Total selecionado: R\$\s300,00$/)
+    expect(selecaoAnunciada()).toHaveTextContent(/Total a portar\s*R\$\s300,00/)
+    expect(selecaoAnunciada()).toHaveTextContent("1 parcela · CONV01")
+    expect(selecaoAnunciada()).not.toHaveTextContent("→")
+    expect(
+      within(resumo()).getByText(
+        "Reenviar o mesmo pedido não cria outra operação."
+      )
+    ).toBeVisible()
+  })
+
+  it("marcar uma parcela na tabela seleciona a marca dela na régua da agenda", async () => {
+    server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+    await screen.findByRole("row", { name: /P001/ })
+
+    expect(marcaNaRegua("10/01 · P001")).toHaveAttribute(
+      "data-estado",
+      "elegivel"
+    )
+    expect(marcaNaRegua("10/03 · P003")).toHaveAttribute(
+      "data-estado",
+      "inelegivel"
+    )
+
+    await user.click(selecao("P001"))
+    expect(marcaNaRegua("10/01 · P001")).toHaveAttribute(
+      "data-estado",
+      "selecionada"
+    )
+    expect(marcaNaRegua("10/02 · P002")).toHaveAttribute(
+      "data-estado",
+      "elegivel"
+    )
+
+    await user.click(selecao("P001"))
+    expect(marcaNaRegua("10/01 · P001")).toHaveAttribute(
+      "data-estado",
+      "elegivel"
+    )
   })
 
   it("desabilita a seleção das parcelas inelegíveis e mostra o motivo", async () => {
     server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
     renderApp("/beneficiarios/BEN001/agenda")
 
-    const linha = await screen.findByRole("row", { name: /P003/ })
+    await screen.findByRole("row", { name: /P003/ })
     expect(selecao("P003")).toHaveAttribute("aria-disabled", "true")
     expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
-    expect(linha).toHaveTextContent(
-      "Não: A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas."
+    expect(selecao("P003")).toHaveAccessibleDescription(
+      "A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas."
     )
   })
 
@@ -103,7 +144,10 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     const linha = await screen.findByRole("row", { name: /P002/ })
     expect(selecao("P002")).toHaveAttribute("aria-disabled", "true")
     expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
-    expect(linha).toHaveTextContent(`ABERTANão: ${motivo}`)
+    expect(selecao("P002")).toHaveAccessibleDescription(motivo)
+    expect(
+      within(linha).getByRole("cell", { name: "Aberta · inelegível" })
+    ).toBeVisible()
   })
 
   it("valida a conta e exige uma parcela antes de enviar", async () => {
@@ -123,7 +167,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     await user.click(botaoEnviar())
 
     expect(
-      await screen.findByText("Selecione ao menos uma parcela.")
+      await within(resumo()).findByText("Selecione ao menos uma parcela.")
     ).toBeVisible()
     expect(screen.getByText("Informe o banco com 3 dígitos.")).toBeVisible()
     expect(screen.getByText("Informe a agência com 4 dígitos.")).toBeVisible()
@@ -191,17 +235,16 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     )
 
-    expect(screen.getByText("PENDENTE")).toBeVisible()
+    expect(
+      await screen.findByText("Aguardando a decisão da Central de Convênios…")
+    ).toBeVisible()
     expect(screen.getByText("prot-123")).toBeVisible()
     expect(
       screen.getByText("Banco 001 · Agência 1234 · Conta 56789-0")
     ).toBeVisible()
-    expect(screen.getByRole("row", { name: /P001/ })).toHaveTextContent(
-      /R\$\s150,50/
-    )
-    expect(screen.getByRole("row", { name: /P002/ })).toHaveTextContent(
-      /R\$\s300,00/
-    )
+    const parcelas = screen.getByRole("list", { name: "Parcelas" })
+    expect(parcelas).toHaveTextContent(/P001R\$\s150,50/)
+    expect(parcelas).toHaveTextContent(/P002R\$\s300,00/)
     const linhaDoTempo = within(
       screen.getByRole("list", { name: "Linha do tempo" })
     ).getAllByRole("listitem")
@@ -241,7 +284,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     expect(botaoEnviar()).toBeEnabled()
   })
 
-  it("FALHA_ENVIO mostra a mensagem e \"Tentar novamente\", que reenvia com a mesma Idempotency-Key", async () => {
+  it('FALHA_ENVIO mostra a mensagem e "Tentar novamente", que reenvia com a mesma Idempotency-Key', async () => {
     const detalhe =
       "A Central de Convênios não respondeu e a operação ficou registrada como falha no envio. Tente novamente."
     const chaves: (string | null)[] = []
@@ -373,7 +416,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       detail: "As parcelas [P002] não estão na agenda do beneficiário BEN001.",
     },
   ])(
-    "mostra uma mensagem clara para o $caso, sem oferecer \"Tentar novamente\"",
+    'mostra uma mensagem clara para o $caso, sem oferecer "Tentar novamente"',
     async ({ status, title, detail }) => {
       server.use(
         http.get(agendaBen001, () => HttpResponse.json(agenda)),
@@ -446,8 +489,8 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       await selecionarPreencherEEnviar(user)
 
       await vi.waitFor(() =>
-        expect(screen.getByText(/^Total selecionado:/)).toHaveTextContent(
-          /^Total selecionado: R\$\s150,50$/
+        expect(selecaoAnunciada()).toHaveTextContent(
+          /Total a portar\s*R\$\s150,50/
         )
       )
       expect(
@@ -458,6 +501,98 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       expect(enviados[1]).toMatchObject({ parcelaIds: ["P001"] })
     }
   )
+
+  it('depois do 409, se a agenda não puder ser atualizada, mostra o erro dela com "Tentar novamente" e mantém o formulário', async () => {
+    let consultas = 0
+    server.use(
+      http.get(agendaBen001, () =>
+        ++consultas === 1
+          ? HttpResponse.json(agenda)
+          : HttpResponse.json(
+              {
+                type: "about:blank",
+                title: "Central de Convênios indisponível",
+                status: 503,
+                detail:
+                  "A Central de Convênios não respondeu. Tente novamente mais tarde.",
+              },
+              {
+                status: 503,
+                headers: { "Content-Type": "application/problem+json" },
+              }
+            )
+      ),
+      http.post(operacoes, () =>
+        HttpResponse.json(
+          {
+            type: "about:blank",
+            title: "Parcela em outra operação",
+            status: 409,
+            detail: "Parcela em outra operação.",
+          },
+          {
+            status: 409,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      )
+    )
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+
+    const regiaoAgenda = screen.getByRole("region", {
+      name: "Agenda de descontos",
+    })
+    const erroAgenda = await within(regiaoAgenda).findByRole("alert")
+    expect(erroAgenda).toHaveTextContent(
+      "A Central de Convênios não respondeu. Tente novamente mais tarde."
+    )
+    expect(within(resumo()).getByRole("alert")).toHaveTextContent(
+      "Parcela em outra operação."
+    )
+    expect(screen.getByLabelText("Banco")).toHaveValue("001")
+    await user.click(
+      within(erroAgenda).getByRole("button", { name: "Tentar novamente" })
+    )
+    await vi.waitFor(() => expect(consultas).toBe(3))
+  })
+
+  it("depois do 422, se a agenda atualizada vier vazia, mantém a mensagem do envio e a conta preenchida", async () => {
+    const enviados: unknown[] = []
+    server.use(
+      http.get(agendaBen001, () =>
+        HttpResponse.json(enviados.length ? [] : agenda)
+      ),
+      http.post(operacoes, async ({ request }) => {
+        enviados.push(await request.json())
+        return HttpResponse.json(
+          {
+            type: "about:blank",
+            title: "Parcela fora da agenda",
+            status: 422,
+            detail: "As parcelas [P001, P002] não estão na agenda.",
+          },
+          {
+            status: 422,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      })
+    )
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+
+    expect(
+      await screen.findByText("O beneficiário não tem parcelas na agenda.")
+    ).toBeVisible()
+    expect(within(resumo()).getByRole("alert")).toHaveTextContent(
+      "As parcelas [P001, P002] não estão na agenda."
+    )
+    expect(screen.getByLabelText("Conta")).toHaveValue("56789")
+    expect(selecaoAnunciada()).toHaveTextContent("Nenhuma parcela selecionada")
+  })
 })
 
 /** Toda tentativa de envio falha na conexão; devolve as `Idempotency-Key` recebidas, na ordem. */
@@ -477,6 +612,22 @@ function selecao(parcelaId: string) {
   return screen.getByRole("checkbox", {
     name: `Selecionar a parcela ${parcelaId}`,
   })
+}
+
+/** A régua é oculta para leitores de tela; a marca se acha pelo rótulo de data e id. */
+function marcaNaRegua(rotulo: string) {
+  return within(screen.getByTestId("regua-agenda"))
+    .getByText(rotulo)
+    .closest("[data-estado]")
+}
+
+function resumo() {
+  return screen.getByRole("complementary", { name: "Resumo da operação" })
+}
+
+/** O total e a seleção, anunciados a cada mudança. */
+function selecaoAnunciada() {
+  return within(resumo()).getByRole("status")
 }
 
 function botaoEnviar() {

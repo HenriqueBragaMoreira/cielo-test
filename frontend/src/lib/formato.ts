@@ -29,3 +29,20 @@ export function formatarMoeda(valor: number) {
 export function formatarData(isoData: string) {
   return isoData.split("-").reverse().join("/")
 }
+
+const partesDaData = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: fusoHorario,
+})
+
+/** A data de hoje em Brasília, como `AAAA-MM-DD`; montada pelas partes, sem depender do formato de um locale. */
+export function hojeEmBrasilia() {
+  const partes = Object.fromEntries(
+    partesDaData
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, value])
+  )
+  return `${partes.year}-${partes.month}-${partes.day}`
+}

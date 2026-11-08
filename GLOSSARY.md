@@ -62,6 +62,10 @@ _Avoid_: aceite, aprovação
 Decisão da Central de Convênios que recusa uma operação de portabilidade, acompanhada de um motivo de rejeição.
 _Avoid_: falha, erro, cancelamento
 
+**Histórico de operações**:
+As operações de portabilidade registradas pela nova credora, da mais recente para a mais antiga, como estão no nosso banco.
+_Avoid_: extrato, log, lista de pedidos
+
 **Motivo de rejeição**:
 Justificativa dada pela Central de Convênios ao rejeitar uma operação de portabilidade.
 _Avoid_: erro, falha

@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useLocation, useParams } from "@tanstack/react-router"
+import { useState } from "react"
 
 import { ConfirmacaoAutorizacao } from "@/autorizacao/confirmacao-autorizacao"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ErroApi } from "@/lib/api"
 import { EnvioOperacaoForm } from "@/portabilidade/envio-operacao-form"
+import { LinkVoltar } from "@/shell/link-voltar"
 
 import { consultarAgenda } from "./api"
+import { AgendaVazia, CartaoAgenda, PainelResumo, Workspace } from "./workspace"
 
 export function AgendaPage() {
   const { beneficiarioId } = useParams({
@@ -24,54 +26,109 @@ export function AgendaPage() {
     retry: false,
   })
 
+  const cabecalho = (
+    <div className="flex flex-col gap-4">
+      <LinkVoltar to="/">Trocar beneficiário</LinkVoltar>
+      <h1 className="text-[1.75rem] leading-tight tracking-[-0.02em]">
+        <span className="font-normal text-muted-foreground">Beneficiário</span>{" "}
+        <span className="font-extrabold">{beneficiarioId}</span>
+      </h1>
+      {registro && <ConfirmacaoAutorizacao registro={registro} />}
+    </div>
+  )
+
+  // depois que a agenda trouxe parcelas, o formulário fica montado mesmo que uma atualização falhe ou venha vazia
+  // (409/422): a conta digitada e a mensagem do envio continuam à vista
+  const [beneficiarioComParcelas, setBeneficiarioComParcelas] =
+    useState<string>()
+  if (agenda.data?.length && beneficiarioComParcelas !== beneficiarioId) {
+    setBeneficiarioComParcelas(beneficiarioId)
+  }
+
+  const erroAgenda = agenda.error && (
+    <div
+      role="alert"
+      className="mt-4 flex flex-col items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+    >
+      <p>{agenda.error.message}</p>
+      {agenda.error instanceof ErroApi && agenda.error.status === 403 ? (
+        <Link to="/" className={buttonVariants()}>
+          Registrar a autorização
+        </Link>
+      ) : (
+        <Button
+          variant="outline"
+          disabled={agenda.isFetching}
+          onClick={() => agenda.refetch()}
+        >
+          Tentar novamente
+        </Button>
+      )}
+    </div>
+  )
+
+  if (agenda.data?.length || beneficiarioComParcelas === beneficiarioId) {
+    return (
+      <EnvioOperacaoForm
+        beneficiarioId={beneficiarioId}
+        parcelas={agenda.data ?? []}
+        cabecalho={cabecalho}
+        erroAgenda={erroAgenda}
+      />
+    )
+  }
+
+  return (
+    <Workspace
+      cabecalho={cabecalho}
+      agenda={
+        <CartaoAgenda aria-busy={agenda.isPending}>
+          {agenda.isPending && <AgendaCarregando />}
+          {erroAgenda}
+          {agenda.data?.length === 0 && <AgendaVazia />}
+        </CartaoAgenda>
+      }
+      resumo={agenda.isPending && <ResumoCarregando />}
+    />
+  )
+}
+
+const barra = "rounded-sm bg-muted motion-safe:animate-pulse"
+
+/** Linhas no formato da tabela, para a tela não "pular" quando a agenda chega. */
+function AgendaCarregando() {
   return (
     <>
-      {registro && <ConfirmacaoAutorizacao registro={registro} />}
-      <Card>
-        <CardHeader>
-          <CardTitle role="heading" aria-level={2}>
-            Agenda do beneficiário {beneficiarioId}
-          </CardTitle>
-        </CardHeader>
-        <CardContent aria-busy={agenda.isPending}>
-          {agenda.isPending && (
-            <p className="text-sm text-muted-foreground">Carregando agenda…</p>
-          )}
-          {agenda.error && (
-            <div
-              role="alert"
-              className="flex flex-col items-start gap-3 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
-            >
-              <p>{agenda.error.message}</p>
-              {agenda.error instanceof ErroApi &&
-              agenda.error.status === 403 ? (
-                <Link to="/" className={buttonVariants()}>
-                  Registrar a autorização
-                </Link>
-              ) : (
-                <Button
-                  variant="outline"
-                  disabled={agenda.isFetching}
-                  onClick={() => agenda.refetch()}
-                >
-                  Tentar novamente
-                </Button>
-              )}
-            </div>
-          )}
-          {agenda.data?.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              O beneficiário não tem parcelas na agenda.
-            </p>
-          )}
-          {!!agenda.data?.length && (
-            <EnvioOperacaoForm
-              beneficiarioId={beneficiarioId}
-              parcelas={agenda.data}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <p className="mt-4 text-sm text-muted-foreground">Carregando agenda…</p>
+      <div aria-hidden className="mt-4 flex flex-col">
+        {[0, 1, 2].map((linha) => (
+          <div key={linha} className="flex h-12 items-center gap-5 border-b">
+            <div className={`${barra} size-5`} />
+            <div className={`${barra} h-3 w-14`} />
+            <div className={`${barra} h-3 w-16`} />
+            <div className={`${barra} h-3 w-20`} />
+            <div className={`${barra} ml-auto h-3 w-20`} />
+            <div className={`${barra} h-3 w-24`} />
+          </div>
+        ))}
+      </div>
     </>
+  )
+}
+
+function ResumoCarregando() {
+  return (
+    <PainelResumo aria-busy>
+      <div aria-hidden className="flex flex-col gap-5">
+        <div className={`${barra} h-11 w-48`} />
+        <div className={`${barra} h-3 w-full`} />
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map((campo) => (
+            <div key={campo} className={`${barra} h-10`} />
+          ))}
+        </div>
+        <div className={`${barra} h-12 rounded-full`} />
+      </div>
+    </PainelResumo>
   )
 }
