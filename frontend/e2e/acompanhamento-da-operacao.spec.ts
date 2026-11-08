@@ -23,6 +23,19 @@ test("BEN001: envia a operação e acompanha até a confirmação", async ({
   await expect(
     page.getByRole("link", { name: "Nova portabilidade" })
   ).toBeVisible()
+
+  // a operação aparece no histórico com o status final
+  const operacao = new URL(page.url()).pathname
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "Histórico" })
+    .click()
+  await expect(page).toHaveURL("/historico")
+  const linha = page
+    .getByRole("row")
+    .filter({ has: page.locator(`a[href="${operacao}"]`) })
+  await expect(linha).toContainText("BEN001")
+  await expect(linha).toContainText("Confirmada")
 })
 
 test("BEN002: envia a operação e acompanha até a rejeição, com o motivo", async ({
