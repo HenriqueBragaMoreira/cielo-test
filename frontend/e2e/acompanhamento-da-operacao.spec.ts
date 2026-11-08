@@ -20,6 +20,9 @@ test("BEN001: envia a operação e acompanha até a confirmação", async ({
   await expect(
     page.getByRole("list", { name: "Linha do tempo" }).getByRole("listitem")
   ).toContainText(["Solicitada", "Enviada", "Confirmada"])
+  await expect(
+    page.getByRole("link", { name: "Nova portabilidade" })
+  ).toBeVisible()
 })
 
 test("BEN002: envia a operação e acompanha até a rejeição, com o motivo", async ({
@@ -42,6 +45,9 @@ test("BEN002: envia a operação e acompanha até a rejeição, com o motivo", a
   await expect(
     page.getByRole("list", { name: "Linha do tempo" }).getByRole("listitem")
   ).toContainText(["Solicitada", "Enviada", "Rejeitada"])
+  await expect(
+    page.getByRole("link", { name: "Voltar à agenda" })
+  ).toHaveAttribute("href", "/beneficiarios/BEN002/agenda")
 })
 
 async function autorizarESelecionar(
