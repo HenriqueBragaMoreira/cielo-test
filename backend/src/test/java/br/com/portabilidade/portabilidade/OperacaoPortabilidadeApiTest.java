@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -812,6 +813,19 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.expectStatus().isOk()
 				.expectBody()
 				.jsonPath("$[*].id").isEqualTo(List.of(recente.toString(), meio.toString(), antiga.toString()));
+	}
+
+	@Test
+	void historicoDesempataOperacoesCriadasNoMesmoInstantePeloIdDecrescente() {
+		var instante = Instant.parse("2026-01-10T12:00:00Z");
+		var ids = IntStream.range(0, 6).mapToObj(i -> gravarOperacao("BEN-" + i, instante).toString()).toList();
+
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				// o Postgres ordena o uuid byte a byte, como o texto em hexadecimal
+				.jsonPath("$[*].id").isEqualTo(ids.stream().sorted(Comparator.reverseOrder()).toList());
 	}
 
 	@Test

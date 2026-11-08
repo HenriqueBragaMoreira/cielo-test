@@ -28,14 +28,17 @@ interface OperacaoPortabilidadeRepository extends JpaRepository<OperacaoPortabil
 			order by p.parcela_id""")
 	List<String> findParcelasEmOutraOperacaoAtiva(Collection<String> parcelaIds, UUID chaveIdempotencia);
 
-	/** Histórico (ADR-0013): as 50 mais recentes, com o total e a quantidade numa consulta só, sem N+1. */
+	/**
+	 * Histórico (ADR-0013): as 50 mais recentes, com o total e a quantidade numa consulta só, sem N+1. A subconsulta
+	 * escolhe as 50 antes de somar, para não agregar as parcelas de todas as operações; o id desempata o instante.
+	 */
 	@Query("""
 			select new br.com.portabilidade.portabilidade.ResumoOperacao(o.id, o.beneficiarioId, o.status,
 				count(p.parcelaId), sum(p.valor), o.criadaEm, o.atualizadaEm)
 			from OperacaoPortabilidade o join o.parcelas p
+			where o.id in (select r.id from OperacaoPortabilidade r order by r.criadaEm desc, r.id desc limit 50)
 			group by o.id, o.beneficiarioId, o.status, o.criadaEm, o.atualizadaEm
-			order by o.criadaEm desc
-			limit 50""")
+			order by o.criadaEm desc, o.id desc""")
 	List<ResumoOperacao> findHistorico();
 
 }
