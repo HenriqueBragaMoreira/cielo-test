@@ -206,17 +206,16 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     )
 
-    expect(screen.getByText("PENDENTE")).toBeVisible()
+    expect(
+      await screen.findByText("Aguardando a decisão da Central de Convênios…")
+    ).toBeVisible()
     expect(screen.getByText("prot-123")).toBeVisible()
     expect(
       screen.getByText("Banco 001 · Agência 1234 · Conta 56789-0")
     ).toBeVisible()
-    expect(screen.getByRole("row", { name: /P001/ })).toHaveTextContent(
-      /R\$\s150,50/
-    )
-    expect(screen.getByRole("row", { name: /P002/ })).toHaveTextContent(
-      /R\$\s300,00/
-    )
+    const parcelas = screen.getByRole("list", { name: "Parcelas" })
+    expect(parcelas).toHaveTextContent(/P001R\$\s150,50/)
+    expect(parcelas).toHaveTextContent(/P002R\$\s300,00/)
     const linhaDoTempo = within(
       screen.getByRole("list", { name: "Linha do tempo" })
     ).getAllByRole("listitem")
