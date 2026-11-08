@@ -113,7 +113,7 @@ describe("tela da operação", () => {
     expect(detalhe).toHaveTextContent("Protocoloprot-123")
     expect(detalhe).toHaveTextContent("BeneficiárioBEN001")
     expect(detalhe).toHaveTextContent(
-      "Conta de destinoBanco 001 · Agência 1234 · Conta 56789-0"
+      "Conta de recebimento de destinoBanco 001 · Agência 1234 · Conta 56789-0"
     )
     expect(detalhe).toHaveTextContent(/P001R\$\s150,50/)
     expect(detalhe).toHaveTextContent(/P002R\$\s300,00/)

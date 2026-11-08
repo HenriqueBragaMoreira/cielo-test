@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
+import { Loader2Icon } from "lucide-react"
 import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
@@ -224,6 +225,9 @@ export function EnvioOperacaoForm({
                 className="w-full"
                 disabled={envio.isPending}
               >
+                {envio.isPending && (
+                  <Loader2Icon aria-hidden className="animate-spin" />
+                )}
                 Enviar portabilidade
               </Button>
               <p className="text-center text-xs text-muted-foreground">

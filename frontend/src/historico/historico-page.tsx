@@ -49,6 +49,9 @@ const situacao: Record<
   },
 }
 
+/** Colunas que saem numa tela estreita, para o status caber sem rolar a tabela; a operação mostra parcelas e total. */
+const soNaTelaLarga = "max-sm:hidden"
+
 /** Histórico de operações (ADR-0013): uma consulta só, sem polling; quem atualiza uma pendente é a tela dela. */
 export function HistoricoPage() {
   const historico = useQuery({
@@ -120,10 +123,12 @@ function TabelaHistorico({ operacoes }: { operacoes?: ResumoOperacao[] }) {
         <TableRow className="hover:bg-transparent">
           <TableHead className={cabecalho}>Criada em</TableHead>
           <TableHead className={cabecalho}>Beneficiário</TableHead>
-          <TableHead className={cn(cabecalho, "text-right")}>
+          <TableHead className={cn(cabecalho, soNaTelaLarga, "text-right")}>
             Parcelas
           </TableHead>
-          <TableHead className={cn(cabecalho, "text-right")}>Total</TableHead>
+          <TableHead className={cn(cabecalho, soNaTelaLarga, "text-right")}>
+            Total
+          </TableHead>
           <TableHead className={cabecalho}>Status</TableHead>
         </TableRow>
       </TableHeader>
@@ -139,7 +144,13 @@ function TabelaHistorico({ operacoes }: { operacoes?: ResumoOperacao[] }) {
           : [0, 1, 2].map((i) => (
               <TableRow key={i} aria-hidden className="hover:bg-transparent">
                 {[36, 20, 8, 24, 24].map((largura, coluna) => (
-                  <TableCell key={coluna} className={celula}>
+                  <TableCell
+                    key={coluna}
+                    className={cn(
+                      celula,
+                      (coluna === 2 || coluna === 3) && soNaTelaLarga
+                    )}
+                  >
                     <span
                       className="block h-3 animate-pulse rounded-full bg-muted"
                       style={{ width: `${largura * 0.25}rem` }}
@@ -164,7 +175,9 @@ function LinhaOperacao({
   return (
     // a linha inteira leva à operação: o link da data se estende sobre ela
     <TableRow className="relative has-[a:focus-visible]:bg-muted/50">
-      <TableCell className={celula}>
+      <TableCell
+        className={cn(celula, "max-sm:py-2.5 max-sm:whitespace-normal")}
+      >
         <Link
           to="/operacoes-portabilidade/$operacaoId"
           params={{ operacaoId: operacao.id }}
@@ -174,10 +187,10 @@ function LinhaOperacao({
         </Link>
       </TableCell>
       <TableCell className={celula}>{operacao.beneficiarioId}</TableCell>
-      <TableCell className={cn(celula, "text-right")}>
+      <TableCell className={cn(celula, soNaTelaLarga, "text-right")}>
         {operacao.quantidadeParcelas}
       </TableCell>
-      <TableCell className={cn(celula, "text-right font-bold")}>
+      <TableCell className={cn(celula, soNaTelaLarga, "text-right font-bold")}>
         {formatarMoeda(operacao.valorTotal)}
       </TableCell>
       <TableCell className={celula}>

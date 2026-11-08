@@ -14,6 +14,8 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import type { Parcela } from "./api"
 
 const cabecalho = "h-9 text-xs font-bold text-muted-foreground"
+/** Colunas que saem numa tela estreita, para o valor caber sem rolar a tabela; o convênio segue no resumo. */
+const soNaTelaLarga = "max-sm:hidden"
 
 /** A tabela é o controle acessível da seleção; a régua da agenda só a espelha. */
 export function TabelaParcelas({
@@ -33,10 +35,14 @@ export function TabelaParcelas({
             <span className="sr-only">Selecionar</span>
           </TableHead>
           <TableHead className={cabecalho}>Parcela</TableHead>
-          <TableHead className={cabecalho}>Convênio</TableHead>
+          <TableHead className={cn(cabecalho, soNaTelaLarga)}>
+            Convênio
+          </TableHead>
           <TableHead className={cabecalho}>Data de desconto</TableHead>
           <TableHead className={cn(cabecalho, "text-right")}>Valor</TableHead>
-          <TableHead className={cabecalho}>Situação</TableHead>
+          <TableHead className={cn(cabecalho, soNaTelaLarga)}>
+            Situação
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -48,7 +54,8 @@ export function TabelaParcelas({
               data-state={selecionada ? "selected" : undefined}
               className={cn(
                 "align-top data-[state=selected]:bg-accent [&>td]:py-3",
-                !parcela.elegivel && "text-muted-foreground"
+                !parcela.elegivel &&
+                  "bg-muted/70 text-muted-foreground hover:bg-muted/70"
               )}
             >
               <TableCell>
@@ -68,19 +75,24 @@ export function TabelaParcelas({
               <TableCell className="whitespace-normal">
                 <span className="block font-semibold">{parcela.parcelaId}</span>
                 {parcela.motivoInelegibilidade && (
-                  <span className="mt-0.5 block max-w-80 min-w-48 text-xs">
+                  <span className="mt-0.5 block max-w-80 min-w-36 text-xs sm:min-w-48">
                     {parcela.motivoInelegibilidade}
                   </span>
                 )}
+                {/* tela estreita: a situação desce para baixo da parcela, e a coluna dela sai */}
+                <span className="mt-0.5 block text-xs sm:hidden">
+                  {situacao(parcela)}
+                </span>
               </TableCell>
-              <TableCell>{parcela.convenioId}</TableCell>
+              <TableCell className={soNaTelaLarga}>
+                {parcela.convenioId}
+              </TableCell>
               <TableCell>{formatarData(parcela.dataDesconto)}</TableCell>
               <TableCell className="text-right font-semibold">
                 {formatarMoeda(parcela.valor)}
               </TableCell>
-              <TableCell>
-                {statusLegivel(parcela.status)} ·{" "}
-                {parcela.elegivel ? "elegível" : "inelegível"}
+              <TableCell className={soNaTelaLarga}>
+                {situacao(parcela)}
               </TableCell>
             </TableRow>
           )
@@ -93,4 +105,8 @@ export function TabelaParcelas({
 // `ABERTA` → `Aberta`: a Central não documenta a lista de status, então nenhum mapa fixo
 function statusLegivel(status: string) {
   return status.charAt(0) + status.slice(1).toLowerCase()
+}
+
+function situacao(parcela: Parcela) {
+  return `${statusLegivel(parcela.status)} · ${parcela.elegivel ? "elegível" : "inelegível"}`
 }

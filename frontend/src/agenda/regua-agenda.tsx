@@ -3,7 +3,7 @@ import { cn } from "cn"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import type { Parcela } from "./api"
-import { niveisDosRotulos, type Eixo } from "./regua"
+import { niveisDosRotulos, rotuloNaTelaEstreita, type Eixo } from "./regua"
 
 /** Selecionada acende em ciano; elegível fica na tinta, com o ponto vazado; inelegível fica em cinza. */
 const marca = {
@@ -56,7 +56,10 @@ export function ReguaAgenda({
             className={cn(
               "absolute -bottom-7 text-xs font-bold whitespace-nowrap",
               // o último mês fecha o eixo: o rótulo fica à esquerda da marca, dentro do cartão
-              indice === eixo.meses.length - 1 && "right-0"
+              indice === eixo.meses.length - 1 && "right-0",
+              // tela estreita: um mês sim, outro não, mais o último (as marcas de todos os meses ficam)
+              !rotuloNaTelaEstreita(indice, eixo.meses.length) &&
+                "max-sm:hidden"
             )}
           >
             {mes.rotulo}
@@ -93,9 +96,10 @@ export function ReguaAgenda({
             style={{ left: `${posicao}%` }}
             className="absolute bottom-0 flex w-0 flex-col items-center"
           >
+            {/* acima das hastes e com o fundo do cartão: a haste de uma vizinha próxima passa por trás do rótulo */}
             <div
               className={cn(
-                "flex flex-col items-center whitespace-nowrap",
+                "relative z-10 flex flex-col items-center bg-card px-0.5 whitespace-nowrap",
                 posicao < 10 && "items-start self-start",
                 posicao > 90 && "items-end self-end"
               )}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { montarEixo, niveisDosRotulos } from "./regua"
+import { montarEixo, niveisDosRotulos, rotuloNaTelaEstreita } from "./regua"
 
 // de 01/11/2025 a 01/03/2026 são 120 dias: novembro 30, dezembro 31, janeiro 31, fevereiro 28
 const percentual = (dias: number) => (dias / 120) * 100
@@ -67,5 +67,21 @@ describe("níveis dos rótulos das parcelas na régua", () => {
 
   it("mantém no chão as parcelas distantes entre si", () => {
     expect(niveisDosRotulos([10, 40, 70])).toEqual([0, 0, 0])
+  })
+})
+
+describe("rótulos de mês da régua numa tela estreita", () => {
+  const visiveis = (total: number) =>
+    Array.from({ length: total }, (_, indice) => indice).filter((indice) =>
+      rotuloNaTelaEstreita(indice, total)
+    )
+
+  it("mostra todos os meses de um eixo curto", () => {
+    expect(visiveis(6)).toEqual([0, 1, 2, 3, 4, 5])
+  })
+
+  it("num eixo longo mostra um mês sim, outro não, e sempre o último, sem o vizinho dele", () => {
+    expect(visiveis(12)).toEqual([0, 2, 4, 6, 8, 11])
+    expect(visiveis(9)).toEqual([0, 2, 4, 6, 8])
   })
 })

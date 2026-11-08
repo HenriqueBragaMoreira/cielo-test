@@ -37,9 +37,10 @@
  * ação primária e passo atual; verde, vermelho e âmbar só para estado.
  */
 :root {
-    --brand-navy: #1e4b8c;
+    /* conferidos contra a logo de referência (ADR-0012): fundo #214986, ciano do "o" e do pingo do "i" #00AEEF */
+    --brand-navy: #214986;
     /* ciano da marca: marcas e passo atual (forma, não texto sobre branco) */
-    --brand-cyan: #12a5e3;
+    --brand-cyan: #00aeef;
     --background: #f3f6fa; /* chão gelo */
     --foreground: #10233f; /* tinta azul-escura */
     --card: #ffffff;
@@ -48,11 +49,11 @@
     --primary: #0a7db8;
     --primary-foreground: #ffffff;
     --secondary: #e8eef6;
-    --secondary-foreground: #1e4b8c;
+    --secondary-foreground: #214986;
     --muted: #eef2f7;
     --muted-foreground: #4a5d78;
     --accent: #e6f5fc;
-    --accent-foreground: #1e4b8c;
+    --accent-foreground: #214986;
     --destructive: #b42318;
     --success: #1a7f4b;
     --warning: #9a5b00;

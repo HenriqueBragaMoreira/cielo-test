@@ -90,3 +90,9 @@ export function niveisDosRotulos(posicoes: number[]) {
   })
   return niveis
 }
+
+/** Até 6 meses, todo rótulo de mês cabe numa tela estreita; acima disso, um mês sim, outro não, e sempre o último. */
+export function rotuloNaTelaEstreita(indice: number, total: number) {
+  if (total <= 6 || indice === total - 1) return true
+  return indice % 2 === 0 && indice !== total - 2
+}

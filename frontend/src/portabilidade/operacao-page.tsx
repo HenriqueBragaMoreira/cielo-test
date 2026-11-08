@@ -42,8 +42,10 @@ const situacao: Record<
   PENDENTE: {
     titulo: "Aguardando a decisão da Central de Convênios…",
     Icone: LoaderCircleIcon,
-    superficie: "bg-accent ring-primary/25",
-    tom: "text-primary",
+    // pendente é estado: âmbar, como no histórico (o ciano fica para seleção, ação e passo atual)
+    superficie:
+      "bg-[color-mix(in_srgb,var(--warning)_7%,white)] ring-warning/30",
+    tom: "text-warning",
   },
   CONFIRMADA: {
     titulo: "Operação confirmada",
@@ -227,7 +229,7 @@ function PainelSituacao({
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span
                   aria-hidden
-                  className="size-2 rounded-full bg-primary motion-safe:animate-pulse"
+                  className="size-2 rounded-full bg-warning motion-safe:animate-pulse"
                 />
                 Consultando a Central automaticamente
               </p>
@@ -351,13 +353,20 @@ function DetalheOperacao({ operacao }: { operacao: Operacao }) {
           </li>
         ))}
       </ul>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 border-t pt-5 text-sm">
-        <dt className="text-muted-foreground">Protocolo</dt>
-        <dd className="font-semibold break-all">{operacao.protocolo ?? "—"}</dd>
-        <dt className="text-muted-foreground">Beneficiário</dt>
-        <dd className="font-semibold">{operacao.beneficiarioId}</dd>
-        <dt className="text-muted-foreground">Conta de destino</dt>
-        <dd className="font-semibold">{`Banco ${banco} · Agência ${agencia} · Conta ${conta}-${digito}`}</dd>
+      {/* rótulo acima do valor: o protocolo cabe numa linha e o termo do glossário não espreme a coluna */}
+      <dl className="flex flex-col gap-3 border-t pt-5 text-sm [&_dd]:font-semibold [&_dt]:text-muted-foreground">
+        <div>
+          <dt>Beneficiário</dt>
+          <dd>{operacao.beneficiarioId}</dd>
+        </div>
+        <div>
+          <dt>Protocolo</dt>
+          <dd className="break-all">{operacao.protocolo ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>Conta de recebimento de destino</dt>
+          <dd>{`Banco ${banco} · Agência ${agencia} · Conta ${conta}-${digito}`}</dd>
+        </div>
       </dl>
     </section>
   )
