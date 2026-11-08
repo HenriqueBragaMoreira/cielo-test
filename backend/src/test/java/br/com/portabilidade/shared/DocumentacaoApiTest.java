@@ -14,6 +14,7 @@ class DocumentacaoApiTest extends ApiTest {
 				.jsonPath("$.info.title").isEqualTo("Portabilidade de Convênios")
 				.jsonPath("$.paths['/api/autorizacoes'].post").exists()
 				.jsonPath("$.paths['/api/operacoes-portabilidade'].post").exists()
+				.jsonPath("$.paths['/api/operacoes-portabilidade'].get").exists()
 				.jsonPath("$.paths['/api/operacoes-portabilidade/{id}'].get").exists();
 	}
 

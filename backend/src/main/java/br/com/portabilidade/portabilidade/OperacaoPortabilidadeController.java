@@ -43,6 +43,15 @@ class OperacaoPortabilidadeController {
 	}
 
 	/**
+	 * Histórico: as 50 operações mais recentes, da mais nova para a mais antiga, lidas só do nosso banco, sem consultar
+	 * a Central nem mandar {@code Retry-After} (ADR-0013). Abrir a operação pelo {@code id} é que a atualiza.
+	 */
+	@GetMapping
+	List<ResumoOperacao> listar() {
+		return service.listar();
+	}
+
+	/**
 	 * A operação pelo nosso identificador, não pelo protocolo da Central. Enquanto {@code PENDENTE}, o header
 	 * {@code Retry-After} indica quando consultar de novo (ADR-0008), exceto se a Central não reconhece mais o
 	 * protocolo: consultar de novo não mudaria nada.

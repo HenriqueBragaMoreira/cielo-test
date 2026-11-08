@@ -183,6 +183,12 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		}
 	}
 
+	/** Lê só do banco: não consulta a Central nem registra transição; quem atualiza é {@link #consultar} (ADR-0013). */
+	@Transactional(readOnly = true)
+	List<ResumoOperacao> listar() {
+		return repository.findHistorico();
+	}
+
 	@Override
 	public Set<String> travadas(Collection<String> parcelaIds) {
 		// sem parcelas não há o que consultar, e "in ()" nem é SQL válido

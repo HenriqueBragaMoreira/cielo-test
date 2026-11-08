@@ -8,10 +8,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +44,9 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 
 	private static final String CONTA_DESTINO = """
 			{ "banco": "001", "agencia": "1234", "conta": "56789", "digito": "0" }""";
+
+	@Autowired
+	private JdbcClient jdbc;
 
 	@Test
 	void envioAceitoPelaCentralRespondeAcceptedComAOperacaoPendente() {
@@ -724,6 +731,116 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.jsonPath("$.status").isEqualTo("PENDENTE")
 				.jsonPath("$.avisoAtualizacao").isEmpty()
 				.jsonPath("$.eventos[*].tipo").isEqualTo(List.of("SOLICITADA", "ENVIADA"));
+	}
+
+	@Test
+	void historicoSemOperacoesRespondeListaVazia() {
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody().json("[]", JsonCompareMode.STRICT);
+	}
+
+	@Test
+	void historicoTrazOResumoDeCadaOperacaoComTotalEQuantidadeDeParcelas() {
+		autorizar("BEN001");
+		agendaDoBen001();
+		centralAceitaOEnvio("prot-1");
+		var enviada = enviar(UUID.randomUUID(), "BEN001", List.of("P001", "P002"), CONTA_DESTINO)
+				.expectStatus().isAccepted()
+				.expectBody(String.class).returnResult().getResponseBody();
+
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.length()").isEqualTo(1)
+				.jsonPath("$[0].criadaEm").isNotEmpty()
+				.jsonPath("$[0].atualizadaEm").isNotEmpty()
+				.json("""
+						[
+						  {
+						    "id": "%s",
+						    "beneficiarioId": "BEN001",
+						    "status": "PENDENTE",
+						    "quantidadeParcelas": 2,
+						    "valorTotal": 450.5
+						  }
+						]""".formatted(JsonPath.<String>read(enviada, "$.id")));
+	}
+
+	@Test
+	void historicoListaUmaOperacaoPendenteSemConsultarACentralNemMandarRetryAfter() {
+		var id = operacaoPendente("prot-1");
+		central.resetRequests();
+
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectHeader().doesNotExist("Retry-After")
+				.expectBody()
+				.jsonPath("$[0].id").isEqualTo(id)
+				.jsonPath("$[0].status").isEqualTo("PENDENTE");
+
+		central.verify(0, anyRequestedFor(anyUrl()));
+	}
+
+	@Test
+	void historicoIncluiOperacaoEmFalhaEnvio() {
+		autorizar("BEN001");
+		agendaDoBen001();
+		central.stubFor(post("/operacoes-portabilidade").willReturn(serviceUnavailable()));
+		String id = esperarFalhaNoEnvio(enviar(UUID.randomUUID(), "BEN001", List.of("P001"), CONTA_DESTINO));
+
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$[*].id").isEqualTo(List.of(id))
+				.jsonPath("$[0].status").isEqualTo("FALHA_ENVIO");
+	}
+
+	@Test
+	void historicoVemDaOperacaoMaisRecenteParaAMaisAntiga() {
+		var t0 = Instant.parse("2026-01-10T12:00:00Z");
+		var meio = gravarOperacao("BEN-MEIO", t0.plusSeconds(3_600));
+		var antiga = gravarOperacao("BEN-ANTIGA", t0);
+		var recente = gravarOperacao("BEN-RECENTE", t0.plusSeconds(7_200));
+
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$[*].id").isEqualTo(List.of(recente.toString(), meio.toString(), antiga.toString()));
+	}
+
+	@Test
+	void historicoSeLimitaAs50OperacoesMaisRecentes() {
+		var t0 = Instant.parse("2026-01-10T12:00:00Z");
+		IntStream.range(0, 51).forEach(i -> gravarOperacao("BEN-" + i, t0.plusSeconds(60L * i)));
+
+		api.get().uri("/api/operacoes-portabilidade")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.length()").isEqualTo(50)
+				.jsonPath("$[0].beneficiarioId").isEqualTo("BEN-50")
+				.jsonPath("$[49].beneficiarioId").isEqualTo("BEN-1");
+	}
+
+	/** Grava direto no banco uma operação confirmada com uma parcela, criada no instante dado; devolve o {@code id}. */
+	private UUID gravarOperacao(String beneficiarioId, Instant criadaEm) {
+		var id = UUID.randomUUID();
+		jdbc.sql("""
+				insert into operacao_portabilidade (id, beneficiario_id, status, banco, agencia, conta, digito,
+				    chave_idempotencia, hash_corpo, criada_em, atualizada_em)
+				values (?, ?, 'CONFIRMADA', '001', '1234', '56789', '0', ?, 'hash', ?, ?)""")
+				.params(id, beneficiarioId, UUID.randomUUID(), Timestamp.from(criadaEm), Timestamp.from(criadaEm))
+				.update();
+		jdbc.sql("insert into operacao_parcela (operacao_id, parcela_id, valor) values (?, ?, 100)")
+				.params(id, "P-" + id)
+				.update();
+		return id;
 	}
 
 	/** Uma operação aceita pela Central, PENDENTE com o protocolo dado. */
