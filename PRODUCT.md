@@ -39,7 +39,7 @@ Fluxo único de ponta a ponta (autorização → agenda → operação → decis
 
 ## Brand Commitments
 
-- A UI se apresenta como um produto interno da Cielo: logo Cielo no header e identidade visual Cielo (azul-marinho #1E4B8C aprox. com o azul-ciano do "o", wordmark branco). Logo de referência fornecida pelo usuário em `C:\Users\kanat\Downloads\cielo_logo.jpg`.
+- A UI se apresenta como um produto interno da Cielo: logo Cielo no header e identidade visual Cielo (azul-marinho #214986 com o azul-ciano #00AEEF do "o" e do pingo do "i", conferidos contra a referência, wordmark branco). Logo de referência fornecida pelo usuário em `C:\Users\kanat\Downloads\cielo_logo.jpg`.
 - Logo recriada em SVG a partir da referência (versão branca sobre azul e versão azul sobre branco).
 - O que o avaliador não pode ver: estado ambíguo da operação, cara de landing page (hero, gradientes, marketing), cara de template shadcn genérico e fantasia de marca (azul Cielo em tudo, logo gigante). A marca deve aparecer com precisão, não com volume.
 - Obrigatório um aviso discreto de que é um projeto de avaliação técnica, sem vínculo oficial com a Cielo (o repositório é público).

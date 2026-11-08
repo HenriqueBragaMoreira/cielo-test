@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-08T04:20:00Z",
+  "title": "Design System: Portabilidade de convênios",
+  "extensions": {
+    "colorMeta": {
+      "brand-navy": { "role": "primary", "displayName": "Azul-marinho Cielo", "canonical": "#214986", "tonalRamp": ["#0e1f3a", "#152d55", "#1b3b70", "#214986", "#4a6aa3", "#7d94bf", "#b3c1da", "#e3e9f3"] },
+      "brand-cyan": { "role": "primary", "displayName": "Ciano Cielo", "canonical": "#00aeef", "tonalRamp": ["#00384d", "#005273", "#007aa8", "#00aeef", "#3fc2f2", "#7ed5f6", "#bde9fa", "#e6f7fd"] },
+      "primary": { "role": "primary", "displayName": "Ciano de ação", "canonical": "#0a7db8", "tonalRamp": ["#032a3e", "#05405e", "#085c88", "#0a7db8", "#3d9bcb", "#75b9dc", "#b1d8ec", "#e6f5fc"] },
+      "foreground": { "role": "neutral", "displayName": "Tinta azul-escura", "canonical": "#10233f", "tonalRamp": ["#0a1628", "#10233f", "#24395a", "#3b5070", "#4a5d78", "#7f8ea3", "#b9c3d1", "#eef2f7"] },
+      "background": { "role": "neutral", "displayName": "Chão gelo", "canonical": "#f3f6fa", "tonalRamp": ["#5b6b80", "#8494a8", "#aab6c6", "#c9d2de", "#dde4ee", "#e8eef6", "#f3f6fa", "#ffffff"] },
+      "card": { "role": "neutral", "displayName": "Superfície branca", "canonical": "#ffffff" },
+      "muted-foreground": { "role": "neutral", "displayName": "Ardósia", "canonical": "#4a5d78" },
+      "border": { "role": "neutral", "displayName": "Linha", "canonical": "#dde4ee" },
+      "input": { "role": "neutral", "displayName": "Contorno de campo", "canonical": "#7f8ea3" },
+      "success": { "role": "tertiary", "displayName": "Verde de estado", "canonical": "#1a7f4b", "tonalRamp": ["#0a3320", "#104d30", "#156640", "#1a7f4b", "#4b9b71", "#7fb89a", "#b5d6c4", "#e8f3ed"] },
+      "warning": { "role": "tertiary", "displayName": "Âmbar de estado", "canonical": "#9a5b00", "tonalRamp": ["#3d2400", "#5c3700", "#7b4900", "#9a5b00", "#b07d33", "#c6a066", "#ddc59e", "#f5ede1"] },
+      "destructive": { "role": "tertiary", "displayName": "Vermelho de estado", "canonical": "#b42318", "tonalRamp": ["#480e0a", "#6c150e", "#901c13", "#b42318", "#c4524a", "#d4827c", "#e6b5b1", "#f8ebea"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "O total a portar e o total da operação, em algarismos tabulares." },
+      "headline": { "displayName": "Headline", "purpose": "O estado da operação no painel de situação." },
+      "title": { "displayName": "Title", "purpose": "O título de cada tela e o identificador do beneficiário." },
+      "body": { "displayName": "Body", "purpose": "Tabelas, detalhes e mensagens; algarismos tabulares em toda a página." },
+      "label": { "displayName": "Label", "purpose": "Rótulos de campo e botões." },
+      "section": { "displayName": "Section", "purpose": "Títulos de cartão em maiúsculas espaçadas e as palavras-guia do intervalo." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "mark-state", "value": "color 200ms ease, background-color 200ms ease", "purpose": "A marca da parcela na régua muda de estado (selecionada, elegível); desligada com prefers-reduced-motion." },
+      { "name": "skeleton-pulse", "value": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite", "purpose": "Esqueletos de carregamento no formato da tela final; só com motion-safe." },
+      { "name": "pending-spin", "value": "spin 1s linear infinite", "purpose": "Ícone da operação pendente e indicador dos botões durante o envio; só com motion-safe no painel." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cápsula ciano de ação para a ação principal da tela.",
+      "html": "<button class=\"ds-btn-primary\">Enviar portabilidade</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 24px; border: 1px solid transparent; border-radius: 9999px; background: var(--primary, #0a7db8); color: var(--primary-foreground, #fff); font: 700 1rem/1 'Nunito Sans Variable', sans-serif; cursor: pointer; transition: background-color 150ms; } .ds-btn-primary:hover { background: color-mix(in srgb, var(--primary, #0a7db8), black 15%); } .ds-btn-primary:focus-visible { outline: 2px solid var(--ring, #0a7db8); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Cápsula branca contornada para tentar de novo, atualizar e a ação secundária de um estado final.",
+      "html": "<button class=\"ds-btn-outline\">Tentar novamente</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; height: 40px; padding: 0 20px; border: 1px solid var(--border, #dde4ee); border-radius: 9999px; background: var(--card, #fff); color: var(--foreground, #10233f); font: 700 0.875rem/1 'Nunito Sans Variable', sans-serif; cursor: pointer; } .ds-btn-outline:hover { background: var(--muted, #eef2f7); } .ds-btn-outline:focus-visible { outline: 2px solid var(--ring, #0a7db8); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo da conta de recebimento de destino, com rótulo em negrito e erro abaixo.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Banco</span><input class=\"ds-input\" inputmode=\"numeric\" maxlength=\"3\" value=\"1\" aria-invalid=\"true\"><span class=\"ds-field-error\">Informe o banco com 3 dígitos.</span></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; font-family: 'Nunito Sans Variable', sans-serif; width: 180px; } .ds-field-label { font-size: 0.875rem; font-weight: 700; color: var(--foreground, #10233f); } .ds-input { height: 40px; padding: 4px 12px; border: 1px solid var(--input, #7f8ea3); border-radius: 8px; background: var(--card, #fff); color: var(--foreground, #10233f); font-size: 0.875rem; } .ds-input:focus-visible { outline: 2px solid var(--ring, #0a7db8); outline-offset: 2px; } .ds-input[aria-invalid=\"true\"] { border-color: var(--destructive, #b42318); box-shadow: 0 0 0 3px color-mix(in srgb, var(--destructive, #b42318) 20%, transparent); } .ds-field-error { font-size: 0.75rem; color: var(--destructive, #b42318); }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Barra azul-marinho com o wordmark, o nome do produto, o stepper e o link do histórico.",
+      "html": "<header class=\"ds-topbar\"><svg class=\"ds-logo\" viewBox=\"0 0 82 36\" fill=\"none\" stroke-width=\"5\" stroke-linecap=\"round\" role=\"img\" aria-label=\"Cielo\"><g stroke=\"#fff\"><path d=\"M17.3 18.7A7.5 7.5 0 1 0 17.3 29.3\"/><path d=\"M26 16.5V31.5\"/><path d=\"M33.5 24H48.5A7.5 7.5 0 1 0 47.14 28.3\"/><path d=\"M56 4.5V31.5\"/></g><circle cx=\"26\" cy=\"7\" r=\"3\" fill=\"#00aeef\"/><circle cx=\"70\" cy=\"24\" r=\"7.5\" stroke=\"#fff\"/><path d=\"M64.7 18.7A7.5 7.5 0 0 1 75.3 29.3\" stroke=\"#00aeef\" stroke-linecap=\"butt\"/></svg><span class=\"ds-product\">Portabilidade de convênios</span><ol class=\"ds-steps\"><li class=\"ds-step ds-done\"><span class=\"ds-dot\">&#10003;</span>Autorização</li><li class=\"ds-step ds-current\"><span class=\"ds-dot\">2</span>Parcelas e conta</li><li class=\"ds-step\"><span class=\"ds-dot\">3</span>Acompanhamento</li></ol><a class=\"ds-nav-link\" href=\"#\">Histórico</a></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; gap: 24px; height: 64px; padding: 0 32px; background: var(--brand-navy, #214986); color: #fff; font-family: 'Nunito Sans Variable', sans-serif; } .ds-logo { height: 28px; } .ds-product { padding-left: 20px; border-left: 1px solid rgba(255,255,255,.3); font-size: 0.9375rem; color: rgba(255,255,255,.85); } .ds-steps { display: flex; gap: 28px; margin: 0 0 0 auto; padding: 0; list-style: none; font-size: 0.875rem; } .ds-step { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 2px solid transparent; color: rgba(255,255,255,.75); } .ds-current { border-color: var(--brand-cyan, #00aeef); color: #fff; font-weight: 700; } .ds-dot { display: grid; place-content: center; width: 20px; height: 20px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.5); } .ds-current .ds-dot { background: var(--brand-cyan, #00aeef); color: var(--foreground, #10233f); box-shadow: none; } .ds-done .ds-dot { background: rgba(255,255,255,.15); box-shadow: none; } .ds-nav-link { padding-left: 28px; border-left: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.75); font-size: 0.875rem; text-decoration: none; } .ds-nav-link:hover { color: #fff; } .ds-nav-link:focus-visible { outline: 2px solid var(--ring, #0a7db8); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Estado da operação no histórico: véu, ícone e palavra na cor do estado.",
+      "html": "<span class=\"ds-pill ds-pill-ok\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/></svg>Confirmada</span> <span class=\"ds-pill ds-pill-wait\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>Pendente</span> <span class=\"ds-pill ds-pill-no\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6M9 9l6 6\"/></svg>Rejeitada</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: 9999px; font: 700 0.75rem/1.5 'Nunito Sans Variable', sans-serif; } .ds-pill-ok { background: color-mix(in srgb, var(--success, #1a7f4b) 10%, transparent); color: var(--success, #1a7f4b); } .ds-pill-wait { background: color-mix(in srgb, var(--warning, #9a5b00) 10%, transparent); color: var(--warning, #9a5b00); } .ds-pill-no { background: color-mix(in srgb, var(--destructive, #b42318) 10%, transparent); color: var(--destructive, #b42318); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Superfície branca contornada sobre o chão gelo, com título de seção e palavras-guia.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-head\"><h2 class=\"ds-section\">Agenda de descontos</h2><p class=\"ds-section\">jan 2026 — dez 2026</p></div><p class=\"ds-card-body\">R$ 150,00 · 10/01 · P001</p></section>",
+      "css": ".ds-card { padding: 24px 28px; border-radius: 12px; background: var(--card, #fff); box-shadow: 0 0 0 1px var(--border, #dde4ee); font-family: 'Nunito Sans Variable', sans-serif; color: var(--foreground, #10233f); font-variant-numeric: tabular-nums; } .ds-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; } .ds-section { margin: 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground, #4a5d78); } .ds-card-body { margin: 16px 0 0; font-size: 0.875rem; }"
+    },
+    {
+      "name": "Régua da agenda",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Assinatura: parcelas na data real num eixo de meses proporcional, com a marca de hoje; selecionada em ciano, elegível na tinta, inelegível em cinza.",
+      "html": "<div class=\"ds-regua\"><span class=\"ds-mes\" style=\"left:0%\"><b>jan 2026</b></span><span class=\"ds-mes\" style=\"left:33%\"><b>fev</b></span><span class=\"ds-mes\" style=\"left:66%\"><b>mar</b></span><span class=\"ds-hoje\" style=\"left:80%\"><i>hoje</i></span><span class=\"ds-parcela ds-sel\" style=\"left:10%\"><em>R$ 150,00</em><small>10/01 · P001</small><span class=\"ds-haste\"></span><span class=\"ds-ponto\"></span></span><span class=\"ds-parcela\" style=\"left:44%\"><em>R$ 150,00</em><small>10/02 · P002</small><span class=\"ds-haste\"></span><span class=\"ds-ponto\"></span></span><span class=\"ds-parcela ds-off\" style=\"left:72%\"><em>R$ 300,00</em><small>10/03 · P010</small><span class=\"ds-haste\"></span><span class=\"ds-ponto\"></span></span></div>",
+      "css": ".ds-regua { position: relative; width: 480px; height: 120px; margin: 8px 8px 36px; border-bottom: 2px solid var(--foreground, #10233f); font-family: 'Nunito Sans Variable', sans-serif; color: var(--foreground, #10233f); font-variant-numeric: tabular-nums; } .ds-mes { position: absolute; bottom: -2px; width: 2px; height: 18px; background: var(--foreground, #10233f); } .ds-mes b { position: absolute; bottom: -24px; font-size: 0.75rem; white-space: nowrap; } .ds-hoje { position: absolute; top: 20px; bottom: -2px; border-left: 1px dashed var(--brand-navy, #214986); } .ds-hoje i { position: absolute; top: -18px; left: 4px; font: normal 700 0.6875rem 'Nunito Sans Variable', sans-serif; color: var(--brand-navy, #214986); } .ds-parcela { position: absolute; bottom: 0; width: 0; display: flex; flex-direction: column; align-items: center; } .ds-parcela em { position: relative; z-index: 1; font-style: normal; font-size: 0.9375rem; font-weight: 800; white-space: nowrap; background: var(--card, #fff); } .ds-parcela small { font-size: 0.6875rem; color: var(--muted-foreground, #4a5d78); white-space: nowrap; } .ds-haste { width: 3px; height: 44px; margin-top: 6px; border-radius: 9999px; background: var(--foreground, #10233f); transition: background-color 200ms; } .ds-ponto { width: 18px; height: 18px; margin: -2px 0 -10px; box-sizing: border-box; border-radius: 9999px; border: 3px solid var(--card, #fff); background: var(--card, #fff); box-shadow: 0 0 0 2px var(--foreground, #10233f); } .ds-sel .ds-haste { background: var(--brand-cyan, #00aeef); } .ds-sel .ds-ponto { background: var(--brand-cyan, #00aeef); box-shadow: 0 0 0 2px var(--brand-cyan, #00aeef); } .ds-off em { color: var(--muted-foreground, #4a5d78); } .ds-off .ds-haste { background: #bcc4cf; } .ds-off .ds-ponto { background: #bcc4cf; box-shadow: 0 0 0 2px #bcc4cf; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A agenda é um calendário",
+    "overview": "Uma ferramenta interna da Cielo para quem conduz a portabilidade o dia todo: barra azul-marinho com o wordmark, chão gelo, superfícies brancas e a tinta azul-escura. A marca aparece com precisão, não com volume. O ciano marca o que o operador escolheu ou vai fazer agora (a parcela selecionada, a ação principal, o passo atual), e verde, vermelho e âmbar só dizem o estado da operação.\n\nA assinatura é a régua da agenda: cada parcela fica na sua data de desconto, num eixo de meses proporcional ao tempo, com a marca de \"hoje\" e o intervalo à vista no cabeçalho. A tabela embaixo é o controle; a régua só espelha a seleção. A linha do tempo da operação usa a mesma gramática (eixo, haste, ponto), então o operador lê a operação como continuação da agenda.\n\nA densidade é de backoffice: números alinhados em algarismos tabulares, hierarquia por contraste de escala (o total em 44px, o estado da operação em 32px), nenhum texto didático. Só tema claro.",
+    "keyCharacteristics": [
+      "Barra de topo azul-marinho de 64px com o wordmark branco, o stepper e o link \"Histórico\".",
+      "Chão gelo com cartões brancos contornados por uma linha de 1px, sem sombra.",
+      "Ciano reservado: seleção, ação primária, passo atual.",
+      "Verde, vermelho e âmbar só para estado, sempre com palavra e ícone.",
+      "Dinheiro na mesma forma em três tamanhos (linha, subtotal, total).",
+      "Régua de meses proporcional como assinatura, repetida na linha do tempo."
+    ],
+    "rules": [
+      { "name": "The Reserved Cyan Rule", "body": "O ciano só marca seleção, ação primária e passo atual. Um elemento decorativo em ciano rouba o sinal de \"isto é o que você escolheu\".", "section": "colors" },
+      { "name": "The State Is Never Only Color Rule", "body": "Verde, vermelho e âmbar aparecem só como estado, e sempre junto de uma palavra e de um ícone.", "section": "colors" },
+      { "name": "The Same Money Rule", "body": "Um valor tem a mesma forma (`R$ 150,00`, tabular) na linha da tabela, na marca da régua e no total; só o tamanho muda.", "section": "typography" },
+      { "name": "The Flat Ledger Rule", "body": "Elevação é declarada uma vez, pelo contorno de 1px. Nada de sombra sob cartão contornado.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do manter o ciano de marca (`brand-cyan`) só em formas (marcas da régua, passo atual, wordmark) e usar o ciano de ação (`primary`) em botões e texto clicável.",
+      "Do escrever cada estado com palavra, ícone e cor, nessa ordem de importância.",
+      "Do usar algarismos tabulares e o mesmo formato `R$ 0,00` em todos os tamanhos.",
+      "Do desenhar qualquer sequência temporal na gramática da régua: eixo, haste, ponto.",
+      "Do separar superfícies por contorno de 1px sobre o chão gelo."
+    ],
+    "donts": [
+      "Don't pintar áreas grandes de azul-marinho ou ciano fora da barra de topo; a marca aparece com precisão, não com volume.",
+      "Don't usar verde, vermelho ou âmbar como decoração ou destaque; são só estado.",
+      "Don't somar sombra a um cartão já contornado.",
+      "Don't introduzir modo escuro: o produto é só tema claro (ADR-0012).",
+      "Don't repetir a logo: ela aparece uma vez, na barra de topo."
+    ]
+  }
+}

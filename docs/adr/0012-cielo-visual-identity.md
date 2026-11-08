@@ -10,6 +10,7 @@ A assinatura da interface é a **régua da agenda**: as parcelas ficam marcadas 
 ## Decisões
 
 - **Logo recriada em SVG** a partir da referência pública, em duas versões: branca sobre azul e azul sobre branco. Não há arquivo oficial no projeto.
+- **Cores conferidas contra a referência:** amostradas da logo, o azul-marinho é `#214986` e o ciano é `#00AEEF` (no pingo do "i" e na metade de cima do "o"), e não as aproximações `#1E4B8C` e `#12A5E3` do início do redesign. O ciano da marca não tem contraste para texto sobre branco, então fica para formas e marcas; a ação primária usa um ciano aprofundado, `#0A7DB8`, com texto branco em AA.
 - **Aviso fixo no rodapé:** "Projeto de avaliação técnica, sem vínculo oficial com a Cielo." O repositório é público, e a marca é da Cielo.
 - **Só tema claro.** O operador trabalha num escritório durante o dia, e a marca é clara. O `ThemeProvider` e os tokens do modo escuro saem.
 - **Os componentes shadcn/ui seguem como base** ([0011](./0011-frontend-stack.md)), mas são reestilizados pelos tokens da marca: nada fica com a cara padrão do template.

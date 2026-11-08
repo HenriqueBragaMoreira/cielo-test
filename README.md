@@ -12,6 +12,8 @@ Solução fullstack (Java + React) para o [desafio técnico](./desafio-tecnico-f
 2. **Agenda**: as parcelas vêm da Central de Convênios, com a elegibilidade de cada uma. O usuário seleciona as parcelas e informa a conta de recebimento de destino.
 3. **Operação de portabilidade**: a tela acompanha a operação até a confirmação ou a rejeição, com a linha do tempo de eventos e os erros de integração explicados.
 
+A interface usa a identidade visual da Cielo (wordmark recriado em SVG, azul-marinho e ciano da marca, só tema claro), com um aviso de que é um projeto de avaliação sem vínculo oficial com a Cielo ([ADR-0012](./docs/adr/0012-cielo-visual-identity.md)); o sistema visual está descrito em [`DESIGN.md`](./DESIGN.md). O link "Histórico", no topo de todas as telas, lista as 50 operações mais recentes lidas só do banco, sem consultar a Central de Convênios, e cada linha abre a tela da operação ([ADR-0013](./docs/adr/0013-operation-history-from-local-database.md)).
+
 Peças:
 
 - **Backend** (Java 25, Spring Boot 4.1, PostgreSQL): é o único que fala com a Central de Convênios, com requisições assinadas por HMAC, timeouts explícitos e idempotência garantida no banco.
@@ -182,6 +184,8 @@ Um resumo; cada ADR traz o contexto e as opções descartadas. O [catálogo de r
 | Toda requisição à Central de Convênios assinada com HMAC-SHA256, segredo em `CENTRAL_HMAC_SECRET` | Integridade da mensagem (diferencial do briefing), com timestamp na assinatura contra replay | [0009](./docs/adr/0009-hmac-signed-central-requests.md) |
 | Testes nas costuras mais altas: API HTTP do backend, rede do frontend e navegador | Uma suíte por fronteira real do sistema; os cenários de erro ficam na integração, onde o WireMock é determinístico e simula timeout | [0010](./docs/adr/0010-test-strategy.md) |
 | TanStack Router e Query, React Hook Form + Zod, Tailwind + shadcn/ui sobre Base UI, pnpm | Rotas tipadas, polling e estado de envio prontos, validação de formato da conta de recebimento de destino | [0011](./docs/adr/0011-frontend-stack.md) |
+| Identidade visual da Cielo, só tema claro, com a régua da agenda como assinatura | O avaliador é da Cielo; a marca aparece com precisão (ciano só na seleção, na ação principal e no passo atual), não com volume | [0012](./docs/adr/0012-cielo-visual-identity.md) |
+| Histórico de operações lido só do banco, as 50 mais recentes, sem consultar a Central de Convênios | Lista rápida e independente da Central; quem atualiza uma pendente continua sendo a tela da operação | [0013](./docs/adr/0013-operation-history-from-local-database.md) |
 
 **Como a duplicidade é evitada** ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)):
 
