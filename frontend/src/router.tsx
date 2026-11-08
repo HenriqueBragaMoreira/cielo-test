@@ -8,6 +8,7 @@ import {
 import { AgendaPage } from "@/agenda/agenda-page"
 import type { RegistroAutorizacao } from "@/autorizacao/api"
 import { AutorizacaoPage } from "@/autorizacao/autorizacao-page"
+import { HistoricoPage } from "@/historico/historico-page"
 import { OperacaoPage } from "@/portabilidade/operacao-page"
 import { AppShell, type Passo } from "@/shell/app-shell"
 
@@ -34,10 +35,18 @@ const operacaoRoute = createRoute({
   component: OperacaoPage,
 })
 
+// sem `passo`: o histórico é uma entrada fora do fluxo, e o shell não mostra o stepper
+const historicoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/historico",
+  component: HistoricoPage,
+})
+
 const routeTree = rootRoute.addChildren([
   autorizacaoRoute,
   agendaRoute,
   operacaoRoute,
+  historicoRoute,
 ])
 
 export function createAppRouter(history?: RouterHistory) {

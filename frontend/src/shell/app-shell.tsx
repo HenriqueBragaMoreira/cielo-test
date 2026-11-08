@@ -1,6 +1,6 @@
-import { Outlet, useMatches } from "@tanstack/react-router"
+import { Link, Outlet, useMatches } from "@tanstack/react-router"
 import { cn } from "cn"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, HistoryIcon } from "lucide-react"
 
 import { Logo } from "./logo"
 
@@ -29,7 +29,19 @@ export function AppShell() {
           </p>
           <div className="flex w-full items-center gap-7 lg:ml-auto lg:w-auto">
             {passoAtual && <Stepper atual={passoAtual} />}
-            {/* slot dos links de navegação fixa (ex.: "Histórico") */}
+            {/* depois do stepper, um divisor separa a navegação fixa dos passos */}
+            <nav
+              aria-label="Navegação"
+              className="ml-auto lg:ml-0 lg:[ol+&]:border-l lg:[ol+&]:border-white/25 lg:[ol+&]:pl-7"
+            >
+              <Link
+                to="/historico"
+                className="flex items-center gap-2 border-b-2 border-transparent py-1 text-sm text-white/75 transition-colors hover:text-white aria-[current=page]:border-brand-cyan aria-[current=page]:font-bold aria-[current=page]:text-white"
+              >
+                <HistoryIcon aria-hidden className="size-4" />
+                Histórico
+              </Link>
+            </nav>
           </div>
         </div>
       </header>
