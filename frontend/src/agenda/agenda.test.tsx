@@ -8,7 +8,19 @@ import { server } from "@/test/server"
 const agendaBen001 = "/api/beneficiarios/BEN001/agenda"
 
 describe("consultar a agenda", () => {
-  it("mostra cada parcela com o valor em reais e a data no formato brasileiro", async () => {
+  it("mostra o beneficiário no cabeçalho do workspace", async () => {
+    server.use(http.get(agendaBen001, () => HttpResponse.json([])))
+    renderApp("/beneficiarios/BEN001/agenda")
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Beneficiário BEN001",
+      })
+    ).toBeVisible()
+  })
+
+  it("mostra cada parcela com convênio, data de desconto, valor e a situação em linguagem legível", async () => {
     server.use(
       http.get(agendaBen001, () =>
         HttpResponse.json([
@@ -27,18 +39,32 @@ describe("consultar a agenda", () => {
     renderApp("/beneficiarios/BEN001/agenda")
 
     const linha = await screen.findByRole("row", { name: /P001/ })
+    expect(
+      screen.getAllByRole("columnheader").map((coluna) => coluna.textContent)
+    ).toEqual([
+      "Selecionar",
+      "Parcela",
+      "Convênio",
+      "Data de desconto",
+      "Valor",
+      "Situação",
+    ])
     expect(within(linha).getByRole("cell", { name: "CONV01" })).toBeVisible()
+    expect(
+      within(linha).getByRole("cell", { name: "10/01/2026" })
+    ).toBeVisible()
     expect(
       within(linha).getByRole("cell", { name: /^R\$\s1\.500,50$/ })
     ).toBeVisible()
     expect(
-      within(linha).getByRole("cell", { name: "10/01/2026" })
+      within(linha).getByRole("cell", { name: "Aberta · elegível" })
     ).toBeVisible()
-    expect(within(linha).getByRole("cell", { name: "ABERTA" })).toBeVisible()
-    expect(within(linha).getByRole("cell", { name: "Sim" })).toBeVisible()
+    expect(linha).not.toHaveTextContent("ABERTA")
   })
 
-  it("mostra o motivo de uma parcela inelegível", async () => {
+  it("mostra a parcela inelegível em cinza, com o motivo abaixo do id", async () => {
+    const motivo =
+      "A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas."
     server.use(
       http.get(agendaBen001, () =>
         HttpResponse.json([
@@ -49,8 +75,7 @@ describe("consultar a agenda", () => {
             dataDesconto: "2026-02-15",
             status: "QUITADA",
             elegivel: false,
-            motivoInelegibilidade:
-              "A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas.",
+            motivoInelegibilidade: motivo,
           },
         ])
       )
@@ -58,11 +83,16 @@ describe("consultar a agenda", () => {
     renderApp("/beneficiarios/BEN001/agenda")
 
     const linha = await screen.findByRole("row", { name: /P002/ })
+    expect(linha).toHaveClass("text-muted-foreground")
     expect(
-      within(linha).getByRole("cell", {
-        name: "Não: A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas.",
-      })
+      within(linha).getByRole("cell", { name: /^P002/ })
+    ).toHaveTextContent(`P002${motivo}`)
+    expect(
+      within(linha).getByRole("cell", { name: "Quitada · inelegível" })
     ).toBeVisible()
+    expect(
+      within(linha).getByRole("checkbox", { name: "Selecionar a parcela P002" })
+    ).toHaveAttribute("aria-disabled", "true")
   })
 
   it("mostra uma mensagem própria para a agenda vazia", async () => {
@@ -126,11 +156,20 @@ describe("consultar a agenda", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
-  it("mostra o indicador de carregamento durante a consulta", async () => {
+  it("mostra o indicador de carregamento com o formato do workspace", async () => {
     server.use(http.get(agendaBen001, () => delay("infinite")))
     renderApp("/beneficiarios/BEN001/agenda")
 
     expect(await screen.findByText("Carregando agenda…")).toBeVisible()
+    expect(
+      screen.getByRole("region", { name: "Agenda de descontos" })
+    ).toHaveAttribute("aria-busy", "true")
+    expect(
+      screen.getByRole("complementary", { name: "Resumo da operação" })
+    ).toHaveAttribute("aria-busy", "true")
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Beneficiário BEN001" })
+    ).toBeVisible()
   })
 })
 

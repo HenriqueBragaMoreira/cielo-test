@@ -62,7 +62,7 @@ describe("registrar a autorização", () => {
 
     const confirmacao = await screen.findByRole("status")
     expect(confirmacao).toHaveTextContent(
-      "Autorização do beneficiário BEN001 registrada em 06/11/2026 às 10:45."
+      "Autorização registrada em 06/11/2026 às 10:45."
     )
     expect(confirmacao).toHaveTextContent("Identificador na Central: aut-123")
   })
@@ -104,7 +104,7 @@ describe("registrar a autorização", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Agenda do beneficiário BEN001",
+        name: "Beneficiário BEN001",
       })
     ).toBeInTheDocument()
     expect(router.state.location.pathname).toBe("/beneficiarios/BEN001/agenda")
@@ -128,7 +128,7 @@ describe("registrar a autorização", () => {
     await preencherEEnviar(user, "BEN001")
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "O beneficiário BEN001 já tinha uma autorização registrada em 01/11/2026 às 09:00."
+      "Autorização já existia, registrada em 01/11/2026 às 09:00."
     )
   })
 

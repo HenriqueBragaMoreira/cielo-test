@@ -60,19 +60,29 @@ const operacaoPendente: Operacao = {
 }
 
 describe("enviar uma operação de portabilidade a partir da agenda", () => {
-  it("soma o valor das parcelas selecionadas", async () => {
+  it("o resumo mostra o total, a quantidade e o intervalo das parcelas selecionadas", async () => {
     server.use(http.get(agendaBen001, () => HttpResponse.json(agenda)))
     const { user } = renderApp("/beneficiarios/BEN001/agenda")
 
-    const total = await screen.findByText(/^Total selecionado:/)
-    expect(total).toHaveTextContent(/^Total selecionado: R\$\s0,00$/)
+    await screen.findByRole("row", { name: /P001/ })
+    expect(selecaoAnunciada()).toHaveTextContent(/Total a portar\s*R\$\s0,00/)
+    expect(selecaoAnunciada()).toHaveTextContent("Nenhuma parcela selecionada")
 
     await user.click(selecao("P001"))
     await user.click(selecao("P002"))
-    expect(total).toHaveTextContent(/^Total selecionado: R\$\s450,50$/)
+    expect(selecaoAnunciada()).toHaveTextContent(/Total a portar\s*R\$\s450,50/)
+    expect(selecaoAnunciada()).toHaveTextContent("2 parcelas · CONV01")
+    expect(selecaoAnunciada()).toHaveTextContent("10/01/2026 → 10/02/2026")
 
     await user.click(selecao("P001"))
-    expect(total).toHaveTextContent(/^Total selecionado: R\$\s300,00$/)
+    expect(selecaoAnunciada()).toHaveTextContent(/Total a portar\s*R\$\s300,00/)
+    expect(selecaoAnunciada()).toHaveTextContent("1 parcela · CONV01")
+    expect(selecaoAnunciada()).not.toHaveTextContent("→")
+    expect(
+      within(resumo()).getByText(
+        "Reenviar o mesmo pedido não cria outra operação."
+      )
+    ).toBeVisible()
   })
 
   it("desabilita a seleção das parcelas inelegíveis e mostra o motivo", async () => {
@@ -83,7 +93,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     expect(selecao("P003")).toHaveAttribute("aria-disabled", "true")
     expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
     expect(linha).toHaveTextContent(
-      "Não: A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas."
+      "A parcela está com status QUITADA; só parcelas ABERTA podem ser portadas."
     )
   })
 
@@ -103,7 +113,12 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     const linha = await screen.findByRole("row", { name: /P002/ })
     expect(selecao("P002")).toHaveAttribute("aria-disabled", "true")
     expect(selecao("P001")).not.toHaveAttribute("aria-disabled", "true")
-    expect(linha).toHaveTextContent(`ABERTANão: ${motivo}`)
+    expect(
+      within(linha).getByRole("cell", { name: /^P002/ })
+    ).toHaveTextContent(`P002${motivo}`)
+    expect(
+      within(linha).getByRole("cell", { name: "Aberta · inelegível" })
+    ).toBeVisible()
   })
 
   it("valida a conta e exige uma parcela antes de enviar", async () => {
@@ -123,7 +138,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     await user.click(botaoEnviar())
 
     expect(
-      await screen.findByText("Selecione ao menos uma parcela.")
+      await within(resumo()).findByText("Selecione ao menos uma parcela.")
     ).toBeVisible()
     expect(screen.getByText("Informe o banco com 3 dígitos.")).toBeVisible()
     expect(screen.getByText("Informe a agência com 4 dígitos.")).toBeVisible()
@@ -241,7 +256,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
     expect(botaoEnviar()).toBeEnabled()
   })
 
-  it("FALHA_ENVIO mostra a mensagem e \"Tentar novamente\", que reenvia com a mesma Idempotency-Key", async () => {
+  it('FALHA_ENVIO mostra a mensagem e "Tentar novamente", que reenvia com a mesma Idempotency-Key', async () => {
     const detalhe =
       "A Central de Convênios não respondeu e a operação ficou registrada como falha no envio. Tente novamente."
     const chaves: (string | null)[] = []
@@ -373,7 +388,7 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       detail: "As parcelas [P002] não estão na agenda do beneficiário BEN001.",
     },
   ])(
-    "mostra uma mensagem clara para o $caso, sem oferecer \"Tentar novamente\"",
+    'mostra uma mensagem clara para o $caso, sem oferecer "Tentar novamente"',
     async ({ status, title, detail }) => {
       server.use(
         http.get(agendaBen001, () => HttpResponse.json(agenda)),
@@ -446,8 +461,8 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       await selecionarPreencherEEnviar(user)
 
       await vi.waitFor(() =>
-        expect(screen.getByText(/^Total selecionado:/)).toHaveTextContent(
-          /^Total selecionado: R\$\s150,50$/
+        expect(selecaoAnunciada()).toHaveTextContent(
+          /Total a portar\s*R\$\s150,50/
         )
       )
       expect(
@@ -477,6 +492,15 @@ function selecao(parcelaId: string) {
   return screen.getByRole("checkbox", {
     name: `Selecionar a parcela ${parcelaId}`,
   })
+}
+
+function resumo() {
+  return screen.getByRole("complementary", { name: "Resumo da operação" })
+}
+
+/** O total e a seleção, anunciados a cada mudança. */
+function selecaoAnunciada() {
+  return within(resumo()).getByRole("status")
 }
 
 function botaoEnviar() {

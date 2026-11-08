@@ -1,23 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { useEffect, useRef, type ComponentProps } from "react"
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
 import type { Parcela } from "@/agenda/api"
+import { TabelaParcelas } from "@/agenda/tabela-parcelas"
+import { CartaoAgenda, PainelResumo, Workspace } from "@/agenda/workspace"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { ErroApi } from "@/lib/api"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -33,13 +26,18 @@ const schema = z.object({
 
 type Formulario = z.infer<typeof schema>
 
-/** A agenda com a seleção das parcelas, o total e a conta de recebimento de destino (passo 3). */
+/**
+ * O workspace da agenda (passo 2): um único formulário, distribuído entre a tabela de parcelas, à esquerda, e o
+ * resumo com o total, a conta de recebimento de destino e o envio, à direita.
+ */
 export function EnvioOperacaoForm({
   beneficiarioId,
   parcelas,
+  cabecalho,
 }: {
   beneficiarioId: string
   parcelas: Parcela[]
+  cabecalho: ReactNode
 }) {
   // uma chave por intenção: reutilizada em qualquer reenvio, renovada só quando o pedido muda (ADR-0005)
   const intencao = useRef<{ chave: string; pedido: string } | null>(null)
@@ -64,9 +62,15 @@ export function EnvioOperacaoForm({
     }
   }, [form, parcelas])
   const selecionadas = useWatch({ control: form.control, name: "parcelaIds" })
-  const total = parcelas
-    .filter((parcela) => selecionadas.includes(parcela.parcelaId))
-    .reduce((soma, parcela) => soma + parcela.valor, 0)
+  const escolhidas = parcelas.filter((parcela) =>
+    selecionadas.includes(parcela.parcelaId)
+  )
+  const total = escolhidas.reduce((soma, parcela) => soma + parcela.valor, 0)
+  // `AAAA-MM-DD` ordena como texto
+  const datas = escolhidas.map((parcela) => parcela.dataDesconto).sort()
+  const convenios = [
+    ...new Set(escolhidas.map((parcela) => parcela.convenioId)),
+  ].join(", ")
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const envio = useMutation({
@@ -109,142 +113,148 @@ export function EnvioOperacaoForm({
   const podeTentarDeNovo = erroEnvio?.status === 0 || erroEnvio?.status === 503
 
   return (
-    <form
-      className="flex flex-col gap-4"
-      noValidate
-      onSubmit={form.handleSubmit((dados) => envio.mutate(dados))}
-    >
-      <Controller
-        control={form.control}
-        name="parcelaIds"
-        render={({ field }) => (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <span className="sr-only">Selecionar</span>
-                </TableHead>
-                <TableHead>Parcela</TableHead>
-                <TableHead>Convênio</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Data de desconto</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Elegível</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {parcelas.map((parcela) => (
-                <TableRow key={parcela.parcelaId}>
-                  <TableCell>
-                    <Checkbox
-                      aria-label={`Selecionar a parcela ${parcela.parcelaId}`}
-                      disabled={!parcela.elegivel}
-                      checked={field.value.includes(parcela.parcelaId)}
-                      onCheckedChange={(marcada) =>
-                        field.onChange(
-                          marcada
-                            ? [...field.value, parcela.parcelaId]
-                            : field.value.filter(
-                                (id) => id !== parcela.parcelaId
-                              )
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>{parcela.parcelaId}</TableCell>
-                  <TableCell>{parcela.convenioId}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatarMoeda(parcela.valor)}
-                  </TableCell>
-                  <TableCell>{formatarData(parcela.dataDesconto)}</TableCell>
-                  <TableCell>{parcela.status}</TableCell>
-                  <TableCell className="whitespace-normal">
-                    {parcela.elegivel
-                      ? "Sim"
-                      : `Não: ${parcela.motivoInelegibilidade}`}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      />
-      <p className="text-sm font-medium tabular-nums">
-        Total selecionado: {formatarMoeda(total)}
-      </p>
-      {erros.parcelaIds && (
-        <p className="text-sm text-destructive">{erros.parcelaIds.message}</p>
-      )}
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-sm font-medium">
-          Conta de recebimento de destino
-        </legend>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Campo
-            id="banco"
-            label="Banco"
-            maxLength={3}
-            erro={erros.banco?.message}
-            {...form.register("banco")}
+    <Workspace
+      cabecalho={cabecalho}
+      agenda={
+        <CartaoAgenda>
+          {/* régua da agenda (#28): espelha `parcelas` e a seleção `selecionadas` */}
+          <Controller
+            control={form.control}
+            name="parcelaIds"
+            render={({ field }) => (
+              <TabelaParcelas
+                parcelas={parcelas}
+                selecionadas={field.value}
+                onSelecionadasChange={field.onChange}
+              />
+            )}
           />
-          <Campo
-            id="agencia"
-            label="Agência"
-            maxLength={4}
-            erro={erros.agencia?.message}
-            {...form.register("agencia")}
-          />
-          <Campo
-            id="conta"
-            label="Conta"
-            maxLength={20}
-            erro={erros.conta?.message}
-            {...form.register("conta")}
-          />
-          <Campo
-            id="digito"
-            label="Dígito"
-            maxLength={1}
-            erro={erros.digito?.message}
-            {...form.register("digito")}
-          />
-        </div>
-      </fieldset>
-      <Button type="submit" disabled={envio.isPending}>
-        Enviar portabilidade
-      </Button>
-      {envio.error && (
-        <div
-          role="alert"
-          className="flex flex-col items-start gap-3 rounded-lg border border-destructive/50 p-3 text-sm text-destructive"
-        >
-          <p>{envio.error.message}</p>
-          {(podeTentarDeNovo || erroEnvio?.id) && (
-            <div className="flex flex-wrap gap-2">
-              {podeTentarDeNovo && envio.variables && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={envio.isPending}
-                  onClick={() => envio.mutate(envio.variables)}
-                >
-                  Tentar novamente
-                </Button>
-              )}
-              {erroEnvio?.id && (
-                <Link
-                  to="/operacoes-portabilidade/$operacaoId"
-                  params={{ operacaoId: erroEnvio.id }}
-                  className={buttonVariants({ variant: "link" })}
-                >
-                  Ver a operação
-                </Link>
-              )}
+        </CartaoAgenda>
+      }
+      resumo={
+        <PainelResumo>
+          <div role="status" className="flex flex-col gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Total a portar</p>
+              <p className="text-[2.75rem] leading-tight font-extrabold tracking-[-0.02em] break-words">
+                {formatarMoeda(total)}
+              </p>
             </div>
+            <p className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t pt-3 text-sm">
+              {escolhidas.length === 0 ? (
+                <span className="text-muted-foreground">
+                  Nenhuma parcela selecionada
+                </span>
+              ) : (
+                <>
+                  <span className="font-semibold">
+                    {escolhidas.length}{" "}
+                    {escolhidas.length === 1 ? "parcela" : "parcelas"} ·{" "}
+                    {convenios}
+                  </span>
+                  <span>
+                    {datas[0] === datas.at(-1)
+                      ? formatarData(datas[0])
+                      : `${formatarData(datas[0])} → ${formatarData(datas.at(-1)!)}`}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+          {erros.parcelaIds && (
+            <p role="alert" className="-mt-2 text-sm text-destructive">
+              {erros.parcelaIds.message}
+            </p>
           )}
-        </div>
-      )}
-    </form>
+          <form
+            className="flex flex-col gap-5"
+            noValidate
+            aria-busy={envio.isPending}
+            onSubmit={form.handleSubmit((dados) => envio.mutate(dados))}
+          >
+            <fieldset className="flex flex-col gap-3 border-t pt-4">
+              <legend className="contents text-sm font-bold">
+                Conta de recebimento de destino
+              </legend>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+                <Campo
+                  id="banco"
+                  label="Banco"
+                  maxLength={3}
+                  erro={erros.banco?.message}
+                  {...form.register("banco")}
+                />
+                <Campo
+                  id="agencia"
+                  label="Agência"
+                  maxLength={4}
+                  erro={erros.agencia?.message}
+                  {...form.register("agencia")}
+                />
+                <Campo
+                  id="conta"
+                  label="Conta"
+                  maxLength={20}
+                  erro={erros.conta?.message}
+                  {...form.register("conta")}
+                />
+                <Campo
+                  id="digito"
+                  label="Dígito"
+                  maxLength={1}
+                  erro={erros.digito?.message}
+                  {...form.register("digito")}
+                />
+              </div>
+            </fieldset>
+            <div className="flex flex-col gap-2">
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={envio.isPending}
+              >
+                Enviar portabilidade
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Reenviar o mesmo pedido não cria outra operação.
+              </p>
+            </div>
+            {envio.error && (
+              <div
+                role="alert"
+                className="flex flex-col items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+              >
+                <p>{envio.error.message}</p>
+                {(podeTentarDeNovo || erroEnvio?.id) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {podeTentarDeNovo && envio.variables && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={envio.isPending}
+                        onClick={() => envio.mutate(envio.variables)}
+                      >
+                        Tentar novamente
+                      </Button>
+                    )}
+                    {erroEnvio?.id && (
+                      <Link
+                        to="/operacoes-portabilidade/$operacaoId"
+                        params={{ operacaoId: erroEnvio.id }}
+                        className={buttonVariants({ variant: "link" })}
+                      >
+                        Ver a operação
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </form>
+        </PainelResumo>
+      }
+    />
   )
 }
 
