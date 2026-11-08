@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react"
-import { delay, http, HttpResponse } from "msw"
+import { http, HttpResponse } from "msw"
 import { describe, expect, it } from "vitest"
 
 import { renderApp } from "@/test/render-app"
@@ -33,19 +33,33 @@ function historicoResponde(...operacoes: ResumoOperacao[]) {
   )
 }
 
+// Todo teste aqui termina sem requisição em voo: uma requisição pendente (ex.: `delay("infinite")`) ou abortada
+// no fim de um teste vaza para o seguinte, e no CI (Node 24) a requisição do teste seguinte escapa do MSW.
+const naoEncontrado = () =>
+  HttpResponse.json(
+    { status: 404, detail: "Fora deste teste." },
+    {
+      status: 404,
+      headers: { "Content-Type": "application/problem+json" },
+    }
+  )
+
 describe("link do histórico na barra de topo", () => {
   it.each([
     "/",
     "/beneficiarios/BEN001/agenda",
     `/operacoes-portabilidade/${confirmada.id}`,
   ])("aparece em %s e abre o histórico", async (path) => {
-    server.use(http.get("/api/*", () => delay("infinite")))
+    // o handler mais recente vence: o histórico responde a lista, o resto da /api responde 404 na hora
+    server.use(http.get("/api/*", naoEncontrado))
+    historicoResponde()
     const { user, router } = renderApp(path)
 
     const topo = await screen.findByRole("banner")
     await user.click(within(topo).getByRole("link", { name: "Histórico" }))
 
     expect(router.state.location.pathname).toBe("/historico")
+    await screen.findByText("Nenhuma operação registrada ainda.")
   })
 
   it("marca o histórico como página atual, sem stepper", async () => {
@@ -59,8 +73,6 @@ describe("link do histórico na barra de topo", () => {
     expect(
       screen.queryByRole("list", { name: "Etapas da portabilidade" })
     ).not.toBeInTheDocument()
-    // espera a lista chegar: uma requisição ainda em voo no fim do teste vaza para o próximo (no Node 24 do CI,
-    // a requisição do teste seguinte escapa do MSW e vai para a rede real)
     await screen.findByText("Nenhuma operação registrada ainda.")
   })
 })
@@ -93,9 +105,7 @@ describe("histórico de operações", () => {
   it("leva à operação a partir da linha", async () => {
     historicoResponde(confirmada, pendente)
     const { user, router } = renderApp("/historico")
-    server.use(
-      http.get("/api/operacoes-portabilidade/:id", () => delay("infinite"))
-    )
+    server.use(http.get("/api/operacoes-portabilidade/:id", naoEncontrado))
 
     await user.click(
       await screen.findByRole("link", { name: /06\/11\/2026 às 09:30/ })
@@ -103,6 +113,9 @@ describe("histórico de operações", () => {
 
     expect(router.state.location.pathname).toBe(
       `/operacoes-portabilidade/${pendente.id}`
+    )
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Fora deste teste."
     )
   })
 
