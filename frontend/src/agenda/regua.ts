@@ -73,21 +73,30 @@ export function montarEixo(datas: string[], hoje: string) {
 /** Distância, em % do eixo, abaixo da qual os rótulos de duas parcelas vizinhas se tocam numa tela estreita. */
 const distanciaMinima = 25
 
+/** Níveis de rótulo que a régua empilha acima do eixo (a régua tem uma altura de haste para cada um). */
+const totalDeNiveis = 3
+
 /**
- * O nível de cada rótulo (0 junto ao eixo, 1 acima), na ordem recebida: a parcela perto demais da anterior no eixo
- * troca de nível, para os rótulos não se sobreporem.
+ * O nível de cada rótulo (0 junto ao eixo), na ordem recebida: da esquerda para a direita, cada parcela fica no nível
+ * mais baixo em que o último rótulo está a pelo menos `distanciaMinima`; se nenhum estiver livre, no nível cujo último
+ * rótulo está mais longe.
  */
 export function niveisDosRotulos(posicoes: number[]) {
   const ordem = posicoes.map((_, indice) => indice)
   ordem.sort((a, b) => posicoes[a] - posicoes[b])
+  const ultimaPosicao: number[] = Array(totalDeNiveis).fill(-Infinity)
   const niveis: number[] = []
-  ordem.forEach((indice, i) => {
-    const anterior = ordem[i - 1]
-    niveis[indice] =
-      i > 0 && posicoes[indice] - posicoes[anterior] < distanciaMinima
-        ? 1 - niveis[anterior]
-        : 0
-  })
+  for (const indice of ordem) {
+    const posicao = posicoes[indice]
+    let nivel = ultimaPosicao.findIndex(
+      (ultima) => posicao - ultima >= distanciaMinima
+    )
+    if (nivel === -1) {
+      nivel = ultimaPosicao.indexOf(Math.min(...ultimaPosicao))
+    }
+    ultimaPosicao[nivel] = posicao
+    niveis[indice] = nivel
+  }
   return niveis
 }
 

@@ -224,10 +224,10 @@ Confiantes e contidos: cápsulas sem sombra.
 - **Histórico:** branco a 75%; na página do histórico, branco em negrito com o mesmo sublinhado ciano.
 
 ### Régua da agenda (assinatura)
-O eixo de meses é uma linha de 2px na tinta, com marcas altas no início de cada mês e curtas nos dias 10 e 20. "Hoje" é uma linha tracejada azul-marinho com o rótulo em cima. Cada parcela tem uma haste e um ponto na data de desconto, com o valor (15px, extrabold) e "dd/mm · id" acima. Estados: selecionada em ciano, elegível na tinta com o ponto vazado, inelegível em cinza opaco. Parcelas próximas alternam a altura do rótulo, e cada rótulo tem o fundo do cartão para a haste vizinha passar por trás. A régua é oculta para leitores de tela: a tabela é o controle.
+O eixo de meses é uma linha de 2px na tinta, com marcas altas no início de cada mês e curtas nos dias 10 e 20. "Hoje" é uma linha tracejada azul-marinho com o rótulo em cima. Cada parcela tem uma haste e um ponto na data de desconto, com o valor (15px, extrabold) e "dd/mm · id" acima. Estados: selecionada em ciano, elegível na tinta com o ponto vazado, inelegível em cinza opaco. O rótulo de uma parcela próxima demais de outra sobe para o nível mais baixo livre (até três níveis), e cada rótulo tem o fundo do cartão para a haste vizinha passar por trás. A régua é oculta para leitores de tela: a tabela é o controle.
 
 ### Linha do tempo da operação
-A mesma gramática da régua: um eixo de 2px, uma haste e um ponto por evento, com o nome do evento e a data e hora acima. Os eventos de passagem ficam na tinta; o final, na cor do estado. Aqui a distância é a ordem, não a duração.
+A mesma gramática da régua: um eixo de 2px, uma haste e um ponto por evento, com o nome do evento e a data e hora acima. Os eventos de passagem ficam na tinta; o final, na cor do estado. Aqui a distância é a ordem, não a duração. Num cartão estreito (abaixo de 42rem) ou com mais de cinco eventos, o eixo fica de pé: cada evento vira uma linha, com o ponto no eixo e a haste deitada até o rótulo.
 
 ### Painel de situação
 O elemento dominante da operação: ícone de 40px e o estado em palavras no estilo Headline, na cor do estado, sobre um véu da mesma cor. Pendente é âmbar, confirmada é verde, rejeitada e falha no envio são vermelhas. Embaixo, a ação do estado: "Atualizar" e o indicador de consulta automática enquanto pendente; "Nova portabilidade" e, depois de rejeição ou falha no envio, "Voltar à agenda".

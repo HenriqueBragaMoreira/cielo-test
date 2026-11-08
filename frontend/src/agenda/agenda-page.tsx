@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useLocation, useParams } from "@tanstack/react-router"
-import { CalendarX2Icon } from "lucide-react"
+import { useState } from "react"
 
 import { ConfirmacaoAutorizacao } from "@/autorizacao/confirmacao-autorizacao"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { ErroApi } from "@/lib/api"
 import { EnvioOperacaoForm } from "@/portabilidade/envio-operacao-form"
 
 import { consultarAgenda } from "./api"
-import { CartaoAgenda, PainelResumo, Workspace } from "./workspace"
+import { AgendaVazia, CartaoAgenda, PainelResumo, Workspace } from "./workspace"
 
 export function AgendaPage() {
   const { beneficiarioId } = useParams({
@@ -39,12 +39,43 @@ export function AgendaPage() {
     </div>
   )
 
-  if (agenda.data?.length) {
+  // depois que a agenda trouxe parcelas, o formulário fica montado mesmo que uma atualização falhe ou venha vazia
+  // (409/422): a conta digitada e a mensagem do envio continuam à vista
+  const [beneficiarioComParcelas, setBeneficiarioComParcelas] =
+    useState<string>()
+  if (agenda.data?.length && beneficiarioComParcelas !== beneficiarioId) {
+    setBeneficiarioComParcelas(beneficiarioId)
+  }
+
+  const erroAgenda = agenda.error && (
+    <div
+      role="alert"
+      className="mt-4 flex flex-col items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+    >
+      <p>{agenda.error.message}</p>
+      {agenda.error instanceof ErroApi && agenda.error.status === 403 ? (
+        <Link to="/" className={buttonVariants()}>
+          Registrar a autorização
+        </Link>
+      ) : (
+        <Button
+          variant="outline"
+          disabled={agenda.isFetching}
+          onClick={() => agenda.refetch()}
+        >
+          Tentar novamente
+        </Button>
+      )}
+    </div>
+  )
+
+  if (agenda.data?.length || beneficiarioComParcelas === beneficiarioId) {
     return (
       <EnvioOperacaoForm
         beneficiarioId={beneficiarioId}
-        parcelas={agenda.data}
+        parcelas={agenda.data ?? []}
         cabecalho={cabecalho}
+        erroAgenda={erroAgenda}
       />
     )
   }
@@ -55,40 +86,8 @@ export function AgendaPage() {
       agenda={
         <CartaoAgenda aria-busy={agenda.isPending}>
           {agenda.isPending && <AgendaCarregando />}
-          {agenda.error && (
-            <div
-              role="alert"
-              className="mt-4 flex flex-col items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
-            >
-              <p>{agenda.error.message}</p>
-              {agenda.error instanceof ErroApi &&
-              agenda.error.status === 403 ? (
-                <Link to="/" className={buttonVariants()}>
-                  Registrar a autorização
-                </Link>
-              ) : (
-                <Button
-                  variant="outline"
-                  disabled={agenda.isFetching}
-                  onClick={() => agenda.refetch()}
-                >
-                  Tentar novamente
-                </Button>
-              )}
-            </div>
-          )}
-          {agenda.data?.length === 0 && (
-            <div className="flex flex-col items-center gap-3 py-14 text-center">
-              <CalendarX2Icon
-                aria-hidden
-                className="size-7 text-muted-foreground"
-                strokeWidth={1.75}
-              />
-              <p className="font-semibold">
-                O beneficiário não tem parcelas na agenda.
-              </p>
-            </div>
-          )}
+          {erroAgenda}
+          {agenda.data?.length === 0 && <AgendaVazia />}
         </CartaoAgenda>
       }
       resumo={agenda.isPending && <ResumoCarregando />}

@@ -30,9 +30,19 @@ export function formatarData(isoData: string) {
   return isoData.split("-").reverse().join("/")
 }
 
-const dataIso = new Intl.DateTimeFormat("en-CA", { timeZone: fusoHorario })
+const partesDaData = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: fusoHorario,
+})
 
-/** A data de hoje em Brasília, como `AAAA-MM-DD`. */
+/** A data de hoje em Brasília, como `AAAA-MM-DD`; montada pelas partes, sem depender do formato de um locale. */
 export function hojeEmBrasilia() {
-  return dataIso.format(new Date())
+  const partes = Object.fromEntries(
+    partesDaData
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, value])
+  )
+  return `${partes.year}-${partes.month}-${partes.day}`
 }

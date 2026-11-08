@@ -1,8 +1,8 @@
 import { cn } from "cn"
+import { CalendarX2Icon } from "lucide-react"
 import type { ComponentProps, ReactNode } from "react"
 
-const tituloSecao =
-  "text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase"
+import { tituloSecao } from "@/lib/estilos"
 
 /** Duas colunas: a agenda à esquerda e o resumo fixo ao rolar à direita; em telas estreitas o resumo empilha abaixo. */
 export function Workspace({
@@ -51,6 +51,21 @@ export function CartaoAgenda({
       </div>
       {children}
     </section>
+  )
+}
+
+export function AgendaVazia() {
+  return (
+    <div className="flex flex-col items-center gap-3 py-14 text-center">
+      <CalendarX2Icon
+        aria-hidden
+        className="size-7 text-muted-foreground"
+        strokeWidth={1.75}
+      />
+      <p className="font-semibold">
+        O beneficiário não tem parcelas na agenda.
+      </p>
+    </div>
   )
 }
 

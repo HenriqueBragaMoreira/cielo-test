@@ -155,6 +155,18 @@ describe("tela da operação", () => {
     expect(eventos[1]).toHaveTextContent("Falha no envio06/11/2026 às 10:45")
   })
 
+  it("sem eventos, mostra a situação e omite a linha do tempo", async () => {
+    consultasRespondidasCom({ ...confirmada, eventos: [] })
+    renderApp(`/operacoes-portabilidade/${id}`)
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Operação confirmada"
+    )
+    expect(
+      screen.queryByRole("list", { name: "Linha do tempo" })
+    ).not.toBeInTheDocument()
+  })
+
   it("mostra a mensagem quando a operação não existe", async () => {
     server.use(
       http.get(url, () =>

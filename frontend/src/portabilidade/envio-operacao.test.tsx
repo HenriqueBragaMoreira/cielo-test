@@ -503,6 +503,98 @@ describe("enviar uma operação de portabilidade a partir da agenda", () => {
       expect(enviados[1]).toMatchObject({ parcelaIds: ["P001"] })
     }
   )
+
+  it('depois do 409, se a agenda não puder ser atualizada, mostra o erro dela com "Tentar novamente" e mantém o formulário', async () => {
+    let consultas = 0
+    server.use(
+      http.get(agendaBen001, () =>
+        ++consultas === 1
+          ? HttpResponse.json(agenda)
+          : HttpResponse.json(
+              {
+                type: "about:blank",
+                title: "Central de Convênios indisponível",
+                status: 503,
+                detail:
+                  "A Central de Convênios não respondeu. Tente novamente mais tarde.",
+              },
+              {
+                status: 503,
+                headers: { "Content-Type": "application/problem+json" },
+              }
+            )
+      ),
+      http.post(operacoes, () =>
+        HttpResponse.json(
+          {
+            type: "about:blank",
+            title: "Parcela em outra operação",
+            status: 409,
+            detail: "Parcela em outra operação.",
+          },
+          {
+            status: 409,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      )
+    )
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+
+    const regiaoAgenda = screen.getByRole("region", {
+      name: "Agenda de descontos",
+    })
+    const erroAgenda = await within(regiaoAgenda).findByRole("alert")
+    expect(erroAgenda).toHaveTextContent(
+      "A Central de Convênios não respondeu. Tente novamente mais tarde."
+    )
+    expect(within(resumo()).getByRole("alert")).toHaveTextContent(
+      "Parcela em outra operação."
+    )
+    expect(screen.getByLabelText("Banco")).toHaveValue("001")
+    await user.click(
+      within(erroAgenda).getByRole("button", { name: "Tentar novamente" })
+    )
+    await vi.waitFor(() => expect(consultas).toBe(3))
+  })
+
+  it("depois do 422, se a agenda atualizada vier vazia, mantém a mensagem do envio e a conta preenchida", async () => {
+    const enviados: unknown[] = []
+    server.use(
+      http.get(agendaBen001, () =>
+        HttpResponse.json(enviados.length ? [] : agenda)
+      ),
+      http.post(operacoes, async ({ request }) => {
+        enviados.push(await request.json())
+        return HttpResponse.json(
+          {
+            type: "about:blank",
+            title: "Parcela fora da agenda",
+            status: 422,
+            detail: "As parcelas [P001, P002] não estão na agenda.",
+          },
+          {
+            status: 422,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      })
+    )
+    const { user } = renderApp("/beneficiarios/BEN001/agenda")
+
+    await selecionarPreencherEEnviar(user)
+
+    expect(
+      await screen.findByText("O beneficiário não tem parcelas na agenda.")
+    ).toBeVisible()
+    expect(within(resumo()).getByRole("alert")).toHaveTextContent(
+      "As parcelas [P001, P002] não estão na agenda."
+    )
+    expect(screen.getByLabelText("Conta")).toHaveValue("56789")
+    expect(selecaoAnunciada()).toHaveTextContent("Nenhuma parcela selecionada")
+  })
 })
 
 /** Toda tentativa de envio falha na conexão; devolve as `Idempotency-Key` recebidas, na ordem. */

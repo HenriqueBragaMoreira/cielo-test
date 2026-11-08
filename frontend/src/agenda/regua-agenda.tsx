@@ -20,6 +20,10 @@ const marca = {
   },
 }
 
+// por nível de rótulo (até `totalDeNiveis`): cada nível acima ganha a altura de um rótulo a mais de haste
+const alturaDaHaste = ["h-11", "h-20", "h-29"]
+const alturaDaRegua = ["h-30", "h-40", "h-50"]
+
 /**
  * A régua da agenda: cada parcela na data de desconto, num eixo de meses proporcional ao tempo. É só o espelho
  * visual da tabela, que continua sendo o controle acessível da seleção.
@@ -40,8 +44,8 @@ export function ReguaAgenda({
       aria-hidden
       data-testid="regua-agenda"
       className={cn(
-        "relative mt-4 mb-9 h-30 border-b-2 border-foreground select-none",
-        niveis.includes(1) && "h-40"
+        "relative mt-4 mb-9 border-b-2 border-foreground select-none",
+        alturaDaRegua[Math.max(0, ...niveis)]
       )}
     >
       {/* shortcut: rótulos de mês fixos colidem num eixo de mais de ~12 meses; espaçar os rótulos se a agenda crescer */}
@@ -120,8 +124,7 @@ export function ReguaAgenda({
             <span
               className={cn(
                 "mt-1.5 w-[3px] rounded-full transition-colors duration-200 motion-reduce:transition-none",
-                // o rótulo de cima ganha a altura de um rótulo a mais de haste
-                niveis[indice] === 1 ? "h-20" : "h-11",
+                alturaDaHaste[niveis[indice]],
                 marca[estado].haste
               )}
             />

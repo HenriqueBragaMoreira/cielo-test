@@ -1,19 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
 import { cn } from "cn"
-import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  CircleXIcon,
-  LoaderCircleIcon,
-  TriangleAlertIcon,
-  type LucideIcon,
-} from "lucide-react"
+import { LoaderCircleIcon, TriangleAlertIcon } from "lucide-react"
 
 import { Button, buttonVariants } from "@/components/ui/button"
+import { tituloSecao } from "@/lib/estilos"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { consultarOperacao, type Operacao, type TipoEvento } from "./api"
+import { estadoDaOperacao } from "./estado-operacao"
 
 const nomeDoEvento: Record<TipoEvento, string> = {
   SOLICITADA: "Solicitada",
@@ -32,42 +27,12 @@ const marcaDoEvento: Record<TipoEvento, string> = {
   REJEITADA: "bg-destructive",
 }
 
-type Status = Operacao["status"]
-
-/** Palavras, ícone e cor de cada estado: o estado nunca fica só na cor. */
-const situacao: Record<
-  Status,
-  { titulo: string; Icone: LucideIcon; superficie: string; tom: string }
-> = {
-  PENDENTE: {
-    titulo: "Aguardando a decisão da Central de Convênios…",
-    Icone: LoaderCircleIcon,
-    // pendente é estado: âmbar, como no histórico (o ciano fica para seleção, ação e passo atual)
-    superficie:
-      "bg-[color-mix(in_srgb,var(--warning)_7%,white)] ring-warning/30",
-    tom: "text-warning",
-  },
-  CONFIRMADA: {
-    titulo: "Operação confirmada",
-    Icone: CircleCheckIcon,
-    superficie:
-      "bg-[color-mix(in_srgb,var(--success)_7%,white)] ring-success/30",
-    tom: "text-success",
-  },
-  REJEITADA: {
-    titulo: "Operação rejeitada",
-    Icone: CircleXIcon,
-    superficie:
-      "bg-[color-mix(in_srgb,var(--destructive)_5%,white)] ring-destructive/30",
-    tom: "text-destructive",
-  },
-  FALHA_ENVIO: {
-    titulo: "Falha no envio",
-    Icone: CircleAlertIcon,
-    superficie:
-      "bg-[color-mix(in_srgb,var(--destructive)_5%,white)] ring-destructive/30",
-    tom: "text-destructive",
-  },
+/** O estado em palavras no painel de situação. */
+const tituloDaSituacao: Record<Operacao["status"], string> = {
+  PENDENTE: "Aguardando a decisão da Central de Convênios…",
+  CONFIRMADA: "Operação confirmada",
+  REJEITADA: "Operação rejeitada",
+  FALHA_ENVIO: "Falha no envio",
 }
 
 /**
@@ -167,8 +132,13 @@ function PainelSituacao({
   atualizando: boolean
   onAtualizar: () => void
 }) {
-  const { titulo, Icone, superficie, tom } = situacao[operacao.status]
   const pendente = operacao.status === "PENDENTE"
+  const { superficie, tom } = estadoDaOperacao[operacao.status]
+  // enquanto a Central decide, o ícone gira
+  const Icone = pendente
+    ? LoaderCircleIcon
+    : estadoDaOperacao[operacao.status].Icone
+  const titulo = tituloDaSituacao[operacao.status]
   const parcelasLiberadas =
     operacao.status === "REJEITADA" || operacao.status === "FALHA_ENVIO"
 
@@ -264,51 +234,74 @@ function PainelSituacao({
 
 /**
  * Os eventos na gramática da régua da agenda: um eixo, uma marca por evento com o nome e a data e hora. Os eventos
- * de uma operação acontecem a segundos uns dos outros, então aqui a distância é a ordem, não a duração.
+ * de uma operação acontecem a segundos uns dos outros, então aqui a distância é a ordem, não a duração. Num cartão
+ * estreito, ou com mais eventos do que cabem lado a lado, o eixo fica de pé e cada evento vira uma linha.
  */
 function LinhaDoTempo({ operacao }: { operacao: Operacao }) {
-  const primeiro = formatarDataHora(operacao.eventos[0].dataHora)
-  const ultimo = formatarDataHora(operacao.eventos.at(-1)!.dataHora)
+  const { eventos } = operacao
+  if (!eventos.length) return null
+  const primeiro = formatarDataHora(eventos[0].dataHora)
+  const ultimo = formatarDataHora(eventos.at(-1)!.dataHora)
+  // cinco eventos, com o nome e a data e hora inteiros, cabem lado a lado num cartão de 42rem
+  const deitada = eventos.length <= 5
   return (
     <section
       aria-labelledby="titulo-linha-do-tempo"
-      className="rounded-xl bg-card px-6 py-6 ring-1 ring-border sm:px-7"
+      className="@container rounded-xl bg-card px-6 py-6 ring-1 ring-border sm:px-7"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs font-bold text-muted-foreground">
-        <h2 id="titulo-linha-do-tempo" className="tracking-[0.08em] uppercase">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="titulo-linha-do-tempo" className={tituloSecao}>
           Linha do tempo
         </h2>
-        <p>{primeiro === ultimo ? primeiro : `${primeiro} — ${ultimo}`}</p>
+        <p className="text-xs font-bold text-muted-foreground">
+          {primeiro === ultimo ? primeiro : `${primeiro} — ${ultimo}`}
+        </p>
       </div>
       <ol
         aria-label="Linha do tempo"
-        className="mt-5 flex border-b-2 border-foreground"
+        className={cn(
+          "mt-5 ml-2 flex flex-col gap-4 border-l-2 border-foreground py-1",
+          deitada &&
+            "@2xl:ml-0 @2xl:flex-row @2xl:gap-0 @2xl:border-b-2 @2xl:border-l-0 @2xl:py-0"
+        )}
       >
-        {operacao.eventos.map((evento) => (
+        {eventos.map((evento) => (
+          // de pé: ponto, haste e rótulo da esquerda para a direita; deitada: rótulo, haste e ponto de cima para baixo
           <li
             key={`${evento.tipo}-${evento.dataHora}`}
-            className="flex min-w-0 flex-1 flex-col items-start justify-end gap-1"
+            className={cn(
+              "flex flex-row-reverse items-center justify-end",
+              deitada &&
+                "@2xl:min-w-0 @2xl:flex-1 @2xl:flex-col @2xl:items-start @2xl:gap-1"
+            )}
           >
-            <span className="text-[0.9375rem] font-extrabold">
-              {nomeDoEvento[evento.tipo]}
-            </span>
-            <time
-              dateTime={evento.dataHora}
-              className="text-xs text-muted-foreground"
+            <div
+              className={cn("ml-2 flex flex-col gap-1", deitada && "@2xl:ml-0")}
             >
-              {formatarDataHora(evento.dataHora)}
-            </time>
+              <span className="text-[0.9375rem] font-extrabold">
+                {nomeDoEvento[evento.tipo]}
+              </span>
+              <time
+                dateTime={evento.dataHora}
+                className="text-xs text-muted-foreground"
+              >
+                {formatarDataHora(evento.dataHora)}
+              </time>
+            </div>
             <span
               aria-hidden
               className={cn(
-                "mt-2 ml-[7.5px] h-8 w-[3px] rounded-full",
+                "h-[3px] w-5 shrink-0 rounded-full",
+                deitada && "@2xl:mt-2 @2xl:ml-[7.5px] @2xl:h-8 @2xl:w-[3px]",
                 marcaDoEvento[evento.tipo]
               )}
             />
             <span
               aria-hidden
               className={cn(
-                "-mb-[10px] size-[18px] rounded-full border-[3px] border-card",
+                // o centro do ponto fica sobre o eixo
+                "-ml-[10px] size-[18px] shrink-0 rounded-full border-[3px] border-card",
+                deitada && "@2xl:-mb-[10px] @2xl:ml-0",
                 marcaDoEvento[evento.tipo]
               )}
             />
@@ -328,10 +321,7 @@ function DetalheOperacao({ operacao }: { operacao: Operacao }) {
       aria-labelledby="titulo-resumo-operacao"
       className="flex flex-col gap-5 rounded-xl bg-card p-7 ring-1 ring-border"
     >
-      <h2
-        id="titulo-resumo-operacao"
-        className="text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase"
-      >
+      <h2 id="titulo-resumo-operacao" className={tituloSecao}>
         Resumo da operação
       </h2>
       <div>

@@ -1,13 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { cn } from "cn"
-import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  CircleXIcon,
-  ClockIcon,
-  type LucideIcon,
-} from "lucide-react"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -19,38 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { soNaTelaLarga } from "@/lib/estilos"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { estadoDaOperacao } from "@/portabilidade/estado-operacao"
 
 import { listarOperacoes, type ResumoOperacao } from "./api"
-
-const situacao: Record<
-  ResumoOperacao["status"],
-  { rotulo: string; Icone: LucideIcon; cor: string }
-> = {
-  PENDENTE: {
-    rotulo: "Pendente",
-    Icone: ClockIcon,
-    cor: "bg-warning/10 text-warning",
-  },
-  CONFIRMADA: {
-    rotulo: "Confirmada",
-    Icone: CircleCheckIcon,
-    cor: "bg-success/10 text-success",
-  },
-  REJEITADA: {
-    rotulo: "Rejeitada",
-    Icone: CircleXIcon,
-    cor: "bg-destructive/10 text-destructive",
-  },
-  FALHA_ENVIO: {
-    rotulo: "Falha no envio",
-    Icone: CircleAlertIcon,
-    cor: "bg-destructive/10 text-destructive",
-  },
-}
-
-/** Colunas que saem numa tela estreita, para o status caber sem rolar a tabela; a operação mostra parcelas e total. */
-const soNaTelaLarga = "max-sm:hidden"
 
 /** Histórico de operações (ADR-0013): uma consulta só, sem polling; quem atualiza uma pendente é a tela dela. */
 export function HistoricoPage() {
@@ -171,7 +137,7 @@ function LinhaOperacao({
   operacao: ResumoOperacao
   celula: string
 }) {
-  const { rotulo, Icone, cor } = situacao[operacao.status]
+  const { rotulo, Icone, tom, veu } = estadoDaOperacao[operacao.status]
   return (
     // a linha inteira leva à operação: o link da data se estende sobre ela
     <TableRow className="relative has-[a:focus-visible]:bg-muted/50">
@@ -197,7 +163,8 @@ function LinhaOperacao({
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-2 text-xs font-bold",
-            cor
+            veu,
+            tom
           )}
         >
           <Icone aria-hidden className="size-3.5" />

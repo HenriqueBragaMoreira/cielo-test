@@ -9,13 +9,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { soNaTelaLarga } from "@/lib/estilos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import type { Parcela } from "./api"
 
 const cabecalho = "h-9 text-xs font-bold text-muted-foreground"
-/** Colunas que saem numa tela estreita, para o valor caber sem rolar a tabela; o convênio segue no resumo. */
-const soNaTelaLarga = "max-sm:hidden"
 
 /** A tabela é o controle acessível da seleção; a régua da agenda só a espelha. */
 export function TabelaParcelas({

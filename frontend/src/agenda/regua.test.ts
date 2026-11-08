@@ -61,8 +61,20 @@ describe("eixo da régua da agenda", () => {
 })
 
 describe("níveis dos rótulos das parcelas na régua", () => {
-  it("sobe o rótulo de uma parcela próxima demais da anterior, alternando os níveis, na ordem recebida", () => {
-    expect(niveisDosRotulos([60, 10, 20, 75, 70])).toEqual([0, 0, 1, 0, 1])
+  it("põe cada rótulo no nível mais baixo livre das parcelas próximas, na ordem recebida", () => {
+    expect(niveisDosRotulos([60, 10, 20, 75, 70])).toEqual([0, 0, 1, 2, 1])
+  })
+
+  it("não sobrepõe três parcelas próximas entre si", () => {
+    expect(niveisDosRotulos([0, 10, 20])).toEqual([0, 1, 2])
+  })
+
+  it("volta ao chão assim que a parcela se afasta da última que ocupou o chão", () => {
+    expect(niveisDosRotulos([0, 10, 30])).toEqual([0, 1, 0])
+  })
+
+  it("com mais parcelas próximas do que níveis, usa o nível cujo último rótulo está mais longe", () => {
+    expect(niveisDosRotulos([0, 5, 10, 15])).toEqual([0, 1, 2, 0])
   })
 
   it("mantém no chão as parcelas distantes entre si", () => {

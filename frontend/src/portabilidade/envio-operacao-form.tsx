@@ -2,7 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Loader2Icon } from "lucide-react"
-import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
@@ -10,7 +16,12 @@ import type { Parcela } from "@/agenda/api"
 import { montarEixo } from "@/agenda/regua"
 import { ReguaAgenda } from "@/agenda/regua-agenda"
 import { TabelaParcelas } from "@/agenda/tabela-parcelas"
-import { CartaoAgenda, PainelResumo, Workspace } from "@/agenda/workspace"
+import {
+  AgendaVazia,
+  CartaoAgenda,
+  PainelResumo,
+  Workspace,
+} from "@/agenda/workspace"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,10 +48,13 @@ export function EnvioOperacaoForm({
   beneficiarioId,
   parcelas,
   cabecalho,
+  erroAgenda,
 }: {
   beneficiarioId: string
   parcelas: Parcela[]
   cabecalho: ReactNode
+  /** A falha da última atualização da agenda, com a saída dela. */
+  erroAgenda?: ReactNode
 }) {
   // uma chave por intenção: reutilizada em qualquer reenvio, renovada só quando o pedido muda (ADR-0005)
   const intencao = useRef<{ chave: string; pedido: string } | null>(null)
@@ -74,9 +88,15 @@ export function EnvioOperacaoForm({
   const convenios = [
     ...new Set(escolhidas.map((parcela) => parcela.convenioId)),
   ].join(", ")
-  const eixo = montarEixo(
-    parcelas.map((parcela) => parcela.dataDesconto),
-    hojeEmBrasilia()
+  const eixo = useMemo(
+    () =>
+      parcelas.length
+        ? montarEixo(
+            parcelas.map((parcela) => parcela.dataDesconto),
+            hojeEmBrasilia()
+          )
+        : undefined,
+    [parcelas]
   )
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -123,23 +143,30 @@ export function EnvioOperacaoForm({
     <Workspace
       cabecalho={cabecalho}
       agenda={
-        <CartaoAgenda palavrasGuia={eixo.palavrasGuia}>
-          <ReguaAgenda
-            eixo={eixo}
-            parcelas={parcelas}
-            selecionadas={selecionadas}
-          />
-          <Controller
-            control={form.control}
-            name="parcelaIds"
-            render={({ field }) => (
-              <TabelaParcelas
+        <CartaoAgenda palavrasGuia={eixo?.palavrasGuia}>
+          {erroAgenda}
+          {eixo ? (
+            <>
+              <ReguaAgenda
+                eixo={eixo}
                 parcelas={parcelas}
-                selecionadas={field.value}
-                onSelecionadasChange={field.onChange}
+                selecionadas={selecionadas}
               />
-            )}
-          />
+              <Controller
+                control={form.control}
+                name="parcelaIds"
+                render={({ field }) => (
+                  <TabelaParcelas
+                    parcelas={parcelas}
+                    selecionadas={field.value}
+                    onSelecionadasChange={field.onChange}
+                  />
+                )}
+              />
+            </>
+          ) : (
+            <AgendaVazia />
+          )}
         </CartaoAgenda>
       }
       resumo={
