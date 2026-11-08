@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,700;6..12,800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:'Nunito Sans',sans-serif;background:#F6F8FB;color:#0F1E36;display:grid;grid-template-columns:240px 1fr}
+.side{background:#0F1E36;color:#fff;padding:24px 18px;display:flex;flex-direction:column;gap:4px}
+.logo{font-weight:800;font-size:28px;margin-bottom:28px}.logo b{color:#12A5E3}
+.side a{font-size:14px;padding:10px 12px;border-radius:8px;opacity:.75}.side a.on{background:#1E4B8C;opacity:1}
+main{padding:28px 36px;display:flex;flex-direction:column;gap:20px}
+h1{font-size:24px;font-weight:800}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.k{background:#fff;border:1px solid #E3E8EF;border-radius:12px;padding:18px}.k small{font-size:12px;color:#5B6B82}.k p{font-size:26px;font-weight:800;margin-top:6px}
+.card{background:#fff;border:1px solid #E3E8EF;border-radius:12px;padding:20px}
+.card h2{font-size:16px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;font-size:12px;color:#5B6B82;padding:10px 8px;border-bottom:1px solid #E3E8EF}td{padding:14px 8px;border-bottom:1px solid #F0F3F7}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.in{height:40px;border:1px solid #CBD3DF;border-radius:8px;margin-top:6px}
+label{font-size:12px;font-weight:700}
+button{align-self:flex-end;height:44px;padding:0 28px;border-radius:8px;border:0;background:#1E4B8C;color:#fff;font-weight:800;font-family:inherit}
+</style></head><body>
+<nav class="side"><div class="logo">ciel<b>o</b></div><a class="on">Nova portabilidade</a><a>Histórico</a><a>Autorizações</a></nav>
+<main><h1>Nova portabilidade · BEN001</h1>
+<div class="kpis"><div class="k"><small>Parcelas na agenda</small><p>2</p></div><div class="k"><small>Selecionadas</small><p>2</p></div><div class="k"><small>Total selecionado</small><p>R$ 300,00</p></div></div>
+<div class="card"><h2>Agenda de descontos</h2><table><thead><tr><th></th><th>Parcela</th><th>Convênio</th><th>Data</th><th>Valor</th><th>Status</th></tr></thead>
+<tbody><tr><td>☑</td><td>P001</td><td>CONV01</td><td>10/01/2026</td><td>R$ 150,00</td><td>Elegível</td></tr><tr><td>☑</td><td>P002</td><td>CONV01</td><td>10/02/2026</td><td>R$ 150,00</td><td>Elegível</td></tr></tbody></table></div>
+<div class="card"><h2>Conta de destino</h2><div class="row"><div><label>Banco</label><div class="in"></div></div><div><label>Agência</label><div class="in"></div></div><div><label>Conta</label><div class="in"></div></div><div><label>Dígito</label><div class="in"></div></div></div></div>
+<button>Enviar portabilidade</button>
+</main></body></html>

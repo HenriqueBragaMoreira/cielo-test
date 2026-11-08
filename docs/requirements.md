@@ -39,7 +39,7 @@ Requisitos do [briefing do desafio](../desafio-tecnico-fullstack-react-java-cand
 | D-01 | Verificação de integridade da mensagem enviada à Central | Toda requisição à Central é assinada com HMAC-SHA256. A verificação cabe à Central, e o simulador a ignora. | [0009](./adr/0009-hmac-signed-central-requests.md) |
 | D-02 | Histórico/trilha de eventos de cada operação | Tabela de eventos só de inserção, gravada na mesma transação de cada mudança de estado e exibida como linha do tempo. | [0007](./adr/0007-operation-states-and-event-trail.md) |
 | D-03 | Testes cobrindo cenários de erro | Testes de integração com WireMock cobrindo 503, 404, timeout, envio concorrente e conflitos. | [0010](./adr/0010-test-strategy.md) |
-| D-04 | Melhorias de UX | Botão desabilitado durante o envio, parcelas inelegíveis desabilitadas com o motivo, indicação de espera, linha do tempo da operação e mensagens de erro com a ação possível (ex.: "Tentar novamente"). | [0005](./adr/0005-idempotent-portability-requests.md), [0007](./adr/0007-operation-states-and-event-trail.md), [0008](./adr/0008-status-tracking-by-client-polling.md) |
+| D-04 | Melhorias de UX | Botão desabilitado durante o envio, parcelas inelegíveis desabilitadas com o motivo, indicação de espera, linha do tempo da operação e mensagens de erro com a ação possível (ex.: "Tentar novamente"). Identidade visual Cielo com stepper, régua da agenda, resumo fixo e histórico de operações. | [0005](./adr/0005-idempotent-portability-requests.md), [0007](./adr/0007-operation-states-and-event-trail.md), [0008](./adr/0008-status-tracking-by-client-polling.md), [0012](./adr/0012-cielo-visual-identity.md), [0013](./adr/0013-operation-history-from-local-database.md) |
 
 ## Entrega
 
@@ -61,6 +61,7 @@ Todas as rotas ficam sob `/api`, e os erros vêm em `application/problem+json`.
 | `POST /api/autorizacoes` `{ beneficiarioId }` | `201` na primeira vez, `200` se já existir → `{ beneficiarioId, autorizacaoId, autorizadaEm }` |
 | `GET /api/beneficiarios/{id}/agenda` | Parcelas com `elegivel` e `motivoInelegibilidade`. `403` sem autorização. |
 | `POST /api/operacoes-portabilidade` + `Idempotency-Key` `{ beneficiarioId, parcelaIds, contaDestino }` | `202` com a operação. Mesma chave e mesmo corpo → a mesma operação. Mesma chave com corpo diferente → `422`. Parcela já em operação ativa → `409`. Falha de envio → `503` com o `id` da operação em `FALHA_ENVIO`. |
+| `GET /api/operacoes-portabilidade` | Histórico: as 50 operações mais recentes do nosso banco, sem consultar a Central → `[{ id, beneficiarioId, status, quantidadeParcelas, valorTotal, criadaEm, atualizadaEm }]` ([0013](./adr/0013-operation-history-from-local-database.md)). |
 | `GET /api/operacoes-portabilidade/{id}` | Status, protocolo, motivo de rejeição, parcelas, conta e `eventos[]`. Header `Retry-After: 2` enquanto `PENDENTE`. |
 
 O `{id}` é um UUID gerado por nós, e o protocolo da Central é um campo da operação. A documentação OpenAPI fica disponível em `/swagger-ui.html`.
@@ -73,4 +74,6 @@ O `{id}` é um UUID gerado por nós, e o protocolo da Central é um campo da ope
 - Expiração e revogação da autorização.
 - Acompanhamento de status por job no backend, e depois push via SSE/WebSocket.
 - Verificação da assinatura HMAC pela Central.
+- Paginação, filtros e atualização junto à Central no histórico de operações ([0013](./adr/0013-operation-history-from-local-database.md)).
+- Modo escuro ([0012](./adr/0012-cielo-visual-identity.md)).
 - Recuperação de protocolos órfãos na Central após timeout no envio.
