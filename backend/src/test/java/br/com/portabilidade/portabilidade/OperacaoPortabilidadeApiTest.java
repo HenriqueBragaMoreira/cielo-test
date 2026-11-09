@@ -135,7 +135,8 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.expectStatus().isBadRequest()
 				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
 				.expectBody()
-				.jsonPath("$.title").isEqualTo("Requisição inválida");
+				.jsonPath("$.title").isEqualTo("Requisição inválida")
+				.jsonPath("$.detail").isEqualTo("O valor informado para Idempotency-Key não é válido.");
 
 		central.verify(0, anyRequestedFor(anyUrl()));
 	}
@@ -533,6 +534,17 @@ class OperacaoPortabilidadeApiTest extends ApiTest {
 				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
 				.expectBody()
 				.jsonPath("$.title").isEqualTo("Operação não encontrada");
+	}
+
+	@Test
+	void consultaComIdQueNaoEhUuidRespondeBadRequest() {
+		api.get().uri("/api/operacoes-portabilidade/{id}", "abc")
+				.exchange()
+				.expectStatus().isBadRequest()
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.title").isEqualTo("Requisição inválida")
+				.jsonPath("$.detail").isEqualTo("O valor informado para id não é válido.");
 	}
 
 	/** O {@code 503} {@code problem+json} de uma operação que ficou em {@code FALHA_ENVIO}; devolve o {@code id} dela. */

@@ -2,36 +2,47 @@
 
 Solução fullstack (Java + React) para o [desafio técnico](./desafio-tecnico-fullstack-react-java-candidato-junior-pleno.md) de portabilidade de convênios de desconto em folha, integrada ao simulador da Central de Convênios fornecido.
 
-## 1. Visão geral
+## 1. Para o avaliador
 
-**Problema.** Uma nova credora quer assumir o direito de receber parcelas de convênios de desconto em folha que hoje pertencem a outro credor. Para isso precisa da autorização do beneficiário, consultar a agenda de parcelas na Central de Convênios, pedir a portabilidade das parcelas escolhidas e acompanhar a decisão, que não é imediata. Reenvios (duplo clique, retry após falha de conexão) não podem criar duas operações para a mesma intenção.
+Com a stack de pé (`docker compose up --build -d --wait`, banco limpo) em <http://localhost:8080>. O simulador tem estes beneficiários:
 
-**Solução.** Um fluxo único em três telas:
+| Beneficiário | Parcelas | Resultado da operação |
+|---|---|---|
+| `BEN001` | `P001` e `P002` (`CONV01`, R$ 150,00 cada) | confirmada |
+| `BEN002` | `P010` (`CONV02`, R$ 300,00) | rejeitada |
+| `BEN_ERRO` | nenhuma | — |
 
-1. **Autorização**: o beneficiário informa seu identificador e autoriza a consulta e a portabilidade; a autorização é registrada na Central de Convênios.
-2. **Agenda**: as parcelas vêm da Central de Convênios, com a elegibilidade de cada uma. O usuário seleciona as parcelas e informa a conta de recebimento de destino.
-3. **Operação de portabilidade**: a tela acompanha a operação até a confirmação ou a rejeição, com a linha do tempo de eventos e os erros de integração explicados.
+1. **Confirmação:** autorize o `BEN001`, selecione a `P001`, preencha a conta de destino (por exemplo `001`, `1234`, `56789`, `0`) e envie. Cerca de 5 s depois, a operação fica "Confirmada", com a linha do tempo Solicitada → Enviada → Confirmada, e a `P001` deixa de ser elegível.
+2. **Rejeição:** repita com o `BEN002` e a `P010`. A operação fica "Rejeitada", com o motivo dado pela Central de Convênios. A rejeição libera a `P010`, então dá para repetir.
+3. **Falha de comunicação:** na agenda do `BEN001`, selecione a `P002` e preencha a conta, sem enviar. Rode `docker compose stop mock-central` e envie: a tela explica o erro e oferece "Tentar novamente". Nenhuma operação é criada, porque o backend relê a agenda na Central antes de gravá-la ([ADR-0006](./docs/adr/0006-eligibility-validated-against-central.md)). Rode `docker compose start mock-central` e tente de novo: o reenvio usa a mesma `Idempotency-Key` ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)) e a operação segue até "Confirmada".
+4. **Histórico:** o link "Histórico", no topo, lista as operações enviadas, e cada linha abre a operação.
+5. **API:** o Swagger UI em <http://localhost:8080/swagger-ui.html> permite chamar cada endpoint direto.
 
-A interface usa a identidade visual da Cielo (wordmark recriado em SVG, azul-marinho e ciano da marca, só tema claro), com um aviso de que é um projeto de avaliação sem vínculo oficial com a Cielo ([ADR-0012](./docs/adr/0012-cielo-visual-identity.md)); o sistema visual está descrito em [`DESIGN.md`](./DESIGN.md). O link "Histórico", no topo de todas as telas, lista as 50 operações mais recentes lidas só do banco, sem consultar a Central de Convênios, e cada linha abre a tela da operação ([ADR-0013](./docs/adr/0013-operation-history-from-local-database.md)).
+**Sobre o `BEN_ERRO`.** No simulador, ele só devolve 503 no envio da operação, mas a agenda dele é vazia. Como o backend valida as parcelas contra essa agenda ([ADR-0006](./docs/adr/0006-eligibility-validated-against-central.md)), não há o que enviar pela UI. Esse 503, que deixa a operação em `FALHA_ENVIO`, é coberto pelos testes de integração do backend, com o WireMock.
 
-Peças:
+## 2. Visão geral
 
-- **Backend** (Java 25, Spring Boot 4.1, PostgreSQL): é o único que fala com a Central de Convênios, com requisições assinadas por HMAC, timeouts explícitos e idempotência garantida no banco.
+Um fluxo único em três telas, com o vocabulário do [glossário](./GLOSSARY.md):
+
+1. **Autorização:** o beneficiário informa seu identificador e autoriza a consulta e a portabilidade.
+2. **Agenda:** as parcelas vêm da Central de Convênios, com a elegibilidade de cada uma. O usuário seleciona as parcelas e informa a conta de destino.
+3. **Operação:** a tela acompanha a operação até a confirmação ou a rejeição, com a linha do tempo de eventos.
+
+O link "Histórico" lista as 50 operações mais recentes ([ADR-0013](./docs/adr/0013-operation-history-from-local-database.md)). A interface usa a identidade visual da Cielo, com um aviso de que é um projeto de avaliação sem vínculo oficial ([ADR-0012](./docs/adr/0012-cielo-visual-identity.md), [`DESIGN.md`](./DESIGN.md)).
+
+- **Backend** (Java 25, Spring Boot 4.1, PostgreSQL): o único que fala com a Central de Convênios, com requisições assinadas por HMAC, timeouts explícitos e idempotência garantida no banco.
 - **Frontend** (React, TypeScript, Vite): fala só com o backend e acompanha a operação por polling.
 - **Simulador** (`mock-central/mock-central.js`): o arquivo do briefing, sem alterações.
 
-O vocabulário segue o [glossário](./GLOSSARY.md). Cada requisito do briefing, com a interpretação adotada, está no [catálogo de requisitos](./docs/requirements.md), e as decisões estão em [`docs/adr/`](./docs/adr/).
+Cada requisito do briefing, com a interpretação adotada, está no [catálogo de requisitos](./docs/requirements.md), e as decisões estão em [`docs/adr/`](./docs/adr/).
 
-## 2. Pré-requisitos
+## 3. Pré-requisitos
 
 - **Para rodar tudo:** Docker com Docker Compose v2. Nada mais.
-- **Para rodar as partes isoladamente:**
-  - JDK 25 (o backend traz o Maven Wrapper, não precisa instalar o Maven);
-  - Node 24;
-  - pnpm, via `corepack enable` (a CI usa o pnpm 12).
+- **Para rodar as partes isoladamente:** JDK 25 (o backend traz o Maven Wrapper), Node 24 e pnpm, via `corepack enable`.
 - **Para os testes:** Docker também no backend (Testcontainers) e no E2E (a stack do compose).
 
-## 3. Como executar
+## 4. Como executar
 
 ### Tudo com Docker Compose
 
@@ -41,84 +52,44 @@ Na raiz do repositório:
 docker compose up --build
 ```
 
-- Aplicação: <http://localhost:8080>
-- Swagger UI: <http://localhost:8080/swagger-ui.html>
+A aplicação fica em <http://localhost:8080> e o Swagger UI em <http://localhost:8080/swagger-ui.html>. O primeiro build leva alguns minutos. O compose sobe o frontend (nginx, que repassa `/api` ao backend), o backend, o PostgreSQL (porta 5432) e o simulador (porta 4000). Para parar: `docker compose down`, ou `docker compose down -v` para apagar também os dados.
 
-O primeiro build leva alguns minutos (dependências do Maven e do pnpm); os seguintes são rápidos. Com `docker compose up --build -d --wait` o comando volta quando a aplicação está pronta.
+O segredo HMAC versionado no `compose.yaml` é só de desenvolvimento. Fora do compose, `CENTRAL_HMAC_SECRET` não tem valor padrão e o backend não sobe sem ela ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
 
-O compose sobe quatro serviços:
+### Backend, frontend e simulador separados
 
-| Serviço | Porta no host | O quê |
-|---|---|---|
-| `frontend` | 8080 | nginx com o build do React; repassa `/api` e o Swagger para o backend |
-| `backend` | — | Spring Boot, acessado pelo nginx |
-| `postgres` | 5432 | banco da aplicação |
-| `mock-central` | 4000 | simulador da Central de Convênios (`node:24-alpine`) |
-
-O segredo HMAC versionado no `compose.yaml` é só de desenvolvimento ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
-
-Para parar: `docker compose down`. Para também apagar os dados: `docker compose down -v`.
-
-### Modo de desenvolvimento
-
-Com a stack completa parada (o backend local usa a porta 8080), o compose sobe só o banco e o simulador, e backend e frontend rodam na máquina ([ADR-0003](./docs/adr/0003-postgresql-and-docker-compose.md)):
+Com a stack completa parada (o backend local usa a porta 8080), suba só o banco e o simulador, e rode backend e frontend na máquina ([ADR-0003](./docs/adr/0003-postgresql-and-docker-compose.md)):
 
 ```sh
+# terminal 1: banco e simulador
 docker compose up postgres mock-central
-```
 
-Depois, em dois terminais, o backend e o frontend como abaixo. A aplicação fica em <http://localhost:5173>.
-
-### Backend
-
-```sh
+# terminal 2: backend em http://localhost:8080 (as migrações do Flyway rodam na subida)
 cd backend
 CENTRAL_HMAC_SECRET=dev-somente-local-nao-usar-em-producao ./mvnw spring-boot:run
-```
 
-No Windows (PowerShell): `$env:CENTRAL_HMAC_SECRET="dev-somente-local-nao-usar-em-producao"; .\mvnw.cmd spring-boot:run`.
-
-Sobe em <http://localhost:8080> (Swagger UI em <http://localhost:8080/swagger-ui.html>). Variáveis de ambiente:
-
-| Variável | Padrão |
-|---|---|
-| `CENTRAL_HMAC_SECRET` | nenhum: obrigatória, o backend não sobe sem ela |
-| `CENTRAL_URL` | `http://localhost:4000` |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/portabilidade` |
-| `DB_USER` / `DB_PASSWORD` | `portabilidade` / `portabilidade` |
-
-Precisa do banco e do simulador de pé (`docker compose up postgres mock-central`). As migrações do Flyway rodam na subida.
-
-### Frontend
-
-```sh
+# terminal 3: frontend em http://localhost:5173, que repassa /api para o backend
 cd frontend
 pnpm install
 pnpm dev
 ```
 
-Sobe em <http://localhost:5173> e repassa `/api` para o backend em `http://localhost:8080`.
+- **Windows (PowerShell):** o backend sobe com `$env:CENTRAL_HMAC_SECRET="dev-somente-local-nao-usar-em-producao"; .\mvnw.cmd spring-boot:run`.
+- **Outras variáveis:** `CENTRAL_URL`, `DB_URL`, `DB_USER` e `DB_PASSWORD` já têm como padrão os endereços do compose.
+- **Simulador fora do Docker:** `node mock-central/mock-central.js`, na porta 4000, só com módulos nativos do Node.
 
-### Simulador
-
-```sh
-node mock-central/mock-central.js
-```
-
-Sobe em <http://localhost:4000>, só com módulos nativos do Node. É o arquivo do briefing, sem alterações ([ADR-0002](./docs/adr/0002-backend-as-sole-central-integrator.md)).
-
-## 4. Como testar
+## 5. Como testar
 
 A estratégia está na [ADR-0010](./docs/adr/0010-test-strategy.md). A CI (`.github/workflows/ci.yml`) roda as três suítes a cada push e pull request.
 
-**Backend**: testes unitários e de integração da API, com PostgreSQL real (Testcontainers) e a Central de Convênios simulada pelo WireMock (503, timeout, 404, concorrência, assinatura HMAC). Precisa de JDK 25 e Docker:
+**Backend:** integração da API com PostgreSQL real (Testcontainers) e a Central de Convênios simulada pelo WireMock: 503, timeout, 404, concorrência e assinatura HMAC.
 
 ```sh
 cd backend
 ./mvnw verify
 ```
 
-**Frontend**: testes de componente com Vitest, Testing Library e MSW:
+**Frontend:** testes de componente com Vitest, Testing Library e MSW.
 
 ```sh
 cd frontend
@@ -127,7 +98,7 @@ pnpm lint
 pnpm test
 ```
 
-**E2E**: Playwright no navegador contra a stack do compose: autorização e agenda, `BEN001` confirmado, `BEN002` rejeitado e duplo clique no envio.
+**E2E:** Playwright no navegador contra a stack do compose: autorização e agenda, `BEN001` confirmado, `BEN002` rejeitado e duplo clique no envio.
 
 ```sh
 docker compose down -v               # banco limpo: uma parcela confirmada fica travada para sempre
@@ -138,54 +109,25 @@ pnpm exec playwright install chromium
 pnpm e2e
 ```
 
-## 5. Roteiro de demonstração
-
-Com a stack de pé (`docker compose up --build`) e o banco limpo, em <http://localhost:8080>. O simulador tem estes beneficiários:
-
-| Beneficiário | Parcelas | Resultado da operação |
-|---|---|---|
-| `BEN001` | `P001` e `P002` (`CONV01`, R$ 150,00 cada) | confirmada |
-| `BEN002` | `P010` (`CONV02`, R$ 300,00) | rejeitada |
-| `BEN_ERRO` | nenhuma | — |
-
-**`BEN001` confirma.**
-
-1. Informe `BEN001`, marque "O beneficiário autoriza a consulta da agenda e a portabilidade das parcelas" e clique em "Registrar autorização".
-2. Na agenda, selecione `P001`, preencha a conta de destino (por exemplo banco `001`, agência `1234`, conta `56789`, dígito `0`) e clique em "Enviar portabilidade".
-3. A tela da operação mostra "Aguardando a decisão da Central de Convênios…" e, alguns segundos depois (a Central de Convênios decide cerca de 5 s após o envio), "Operação confirmada", com a linha do tempo Solicitada → Enviada → Confirmada. A `P001` deixa de ser elegível na agenda.
-
-**`BEN002` rejeita.** Repita com `BEN002` e a parcela `P010`. O resultado é "Operação rejeitada", com o motivo "Beneficiário atingiu o limite de margem consignável". A rejeição libera a `P010`, então este caso pode ser repetido.
-
-**Falha de comunicação com a Central de Convênios.** Desligue o simulador no meio do fluxo:
-
-1. Autorize o `BEN001` e, na agenda, selecione a `P002` e preencha a conta de destino, sem enviar.
-2. Em outro terminal: `docker compose stop mock-central`.
-3. Clique em "Enviar portabilidade". A tela mostra "A Central de Convênios não respondeu. Tente novamente mais tarde." e o botão "Tentar novamente". Nenhuma operação é criada: antes de gravá-la, o backend relê a agenda na Central de Convênios ([ADR-0006](./docs/adr/0006-eligibility-validated-against-central.md)), e essa leitura já falha.
-4. `docker compose start mock-central` e clique em "Tentar novamente": o pedido é reenviado com a mesma `Idempotency-Key` ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)) e a operação segue até "Operação confirmada".
-
-Com o simulador desligado, registrar uma autorização e abrir a agenda mostram a mesma mensagem, a agenda com o botão "Tentar novamente". O estado `FALHA_ENVIO`, em que a operação já foi gravada e pode ser reenviada, só aparece quando a Central de Convênios responde à leitura da agenda e falha no envio da operação. Esse caso não dá para provocar pela UI e é coberto pelos testes de integração do backend (veja o `BEN_ERRO` abaixo).
-
-**Por que não o `BEN_ERRO`.** No simulador, o `BEN_ERRO` só devolve 503 no envio da operação, mas sua agenda é vazia. Como o backend valida as parcelas contra a agenda da Central de Convênios ([ADR-0006](./docs/adr/0006-eligibility-validated-against-central.md)), não há parcela para selecionar e o envio nunca acontece pela UI. Esse 503 é coberto pelos testes de integração do backend, com o WireMock.
-
 ## 6. Decisões e porquês
 
-Um resumo; cada ADR traz o contexto e as opções descartadas. O [catálogo de requisitos](./docs/requirements.md) liga cada requisito do briefing às decisões.
+Um resumo. Cada ADR traz o contexto e as opções descartadas.
 
 | Decisão | Por quê | ADR |
 |---|---|---|
-| Domínio em português no código, na API e na documentação; termos técnicos em inglês | É o vocabulário do contrato da Central de Convênios e do [glossário](./GLOSSARY.md), sem tradução mental campo a campo | [0001](./docs/adr/0001-portuguese-domain-language.md) |
-| Só o backend fala com a Central de Convênios; pacotes por funcionalidade, com um único adaptador `central/`; Spring Boot 4.1 com Java 25 | Autorização local, deduplicação, HMAC e trilha de eventos não se sustentam se o navegador chamar a Central de Convênios. A linha 3.x do Spring Boot saiu do suporte open source em 2026 | [0002](./docs/adr/0002-backend-as-sole-central-integrator.md) |
-| PostgreSQL com Flyway, tudo num `docker compose up`, com o nginx servindo o frontend e a API na mesma origem | A deduplicação depende de `UNIQUE` e de concorrência confiáveis, que o H2 só imita; o avaliador só precisa de Docker; sem CORS | [0003](./docs/adr/0003-postgresql-and-docker-compose.md) |
-| Fluxo único, sem login, com a autorização exigida localmente (`403` sem autorização registrada) | O briefing pede uma captura simples da autorização, e a Central de Convênios não aplica a regra de beneficiário autorizado | [0004](./docs/adr/0004-single-flow-without-authentication.md) |
-| Idempotência em duas camadas, ambas garantidas no banco (detalhe abaixo) | A Central de Convênios não é idempotente: cada envio gera um protocolo novo | [0005](./docs/adr/0005-idempotent-portability-requests.md) |
-| Elegibilidade = parcela `ABERTA` na agenda da Central de Convênios e fora de operação ativa; o backend relê a agenda ao criar a operação | O frontend não é fonte de verdade, e o simulador nunca muda o status de uma parcela portada | [0006](./docs/adr/0006-eligibility-validated-against-central.md) |
-| Estados `PENDENTE`, `CONFIRMADA`, `REJEITADA` e `FALHA_ENVIO`; timeouts de 2 s (conexão) e 5 s (leitura); nenhum retry automático no envio; erros em `application/problem+json` | Cada resposta da Central de Convênios (503, 404, timeout, conexão recusada) vira um estado e uma mensagem explícitos, sem reenvio às cegas | [0007](./docs/adr/0007-operation-states-and-event-trail.md) |
-| Acompanhamento por polling do frontend no ritmo do `Retry-After` (2 s), com botão "Atualizar" | A Central de Convênios só oferece polling; com um operador e uma espera de cerca de 5 s, é o mais simples. A evolução é job no backend e depois SSE | [0008](./docs/adr/0008-status-tracking-by-client-polling.md) |
-| Toda requisição à Central de Convênios assinada com HMAC-SHA256, segredo em `CENTRAL_HMAC_SECRET` | Integridade da mensagem (diferencial do briefing), com timestamp na assinatura contra replay | [0009](./docs/adr/0009-hmac-signed-central-requests.md) |
-| Testes nas costuras mais altas: API HTTP do backend, rede do frontend e navegador | Uma suíte por fronteira real do sistema; os cenários de erro ficam na integração, onde o WireMock é determinístico e simula timeout | [0010](./docs/adr/0010-test-strategy.md) |
-| TanStack Router e Query, React Hook Form + Zod, Tailwind + shadcn/ui sobre Base UI, pnpm | Rotas tipadas, polling e estado de envio prontos, validação de formato da conta de recebimento de destino | [0011](./docs/adr/0011-frontend-stack.md) |
-| Identidade visual da Cielo, só tema claro, com a régua da agenda como assinatura | O avaliador é da Cielo; a marca aparece com precisão (ciano só na seleção, na ação principal e no passo atual), não com volume | [0012](./docs/adr/0012-cielo-visual-identity.md) |
-| Histórico de operações lido só do banco, as 50 mais recentes, sem consultar a Central de Convênios | Lista rápida e independente da Central; quem atualiza uma pendente continua sendo a tela da operação | [0013](./docs/adr/0013-operation-history-from-local-database.md) |
+| Domínio em português; termos técnicos em inglês | É o vocabulário do contrato da Central de Convênios e do glossário | [0001](./docs/adr/0001-portuguese-domain-language.md) |
+| Só o backend fala com a Central de Convênios; Spring Boot 4.1 com Java 25 | Autorização, deduplicação, HMAC e trilha de eventos não se sustentam se o navegador chamar a Central | [0002](./docs/adr/0002-backend-as-sole-central-integrator.md) |
+| PostgreSQL com Flyway, tudo num `docker compose up` | A deduplicação depende de `UNIQUE` e de concorrência reais, que o H2 só imita; o avaliador só precisa de Docker | [0003](./docs/adr/0003-postgresql-and-docker-compose.md) |
+| Fluxo único, sem login, com a autorização exigida localmente (`403`) | O briefing pede uma captura simples da autorização | [0004](./docs/adr/0004-single-flow-without-authentication.md) |
+| Idempotência em duas camadas, garantidas no banco (detalhe abaixo) | A Central de Convênios não é idempotente: cada envio gera um protocolo novo | [0005](./docs/adr/0005-idempotent-portability-requests.md) |
+| Elegibilidade relida na Central de Convênios ao criar a operação | O frontend não é fonte de verdade | [0006](./docs/adr/0006-eligibility-validated-against-central.md) |
+| Estados explícitos, timeouts de 2 s e 5 s, nenhum retry automático no envio, erros em `problem+json` | Cada falha da Central vira um estado e uma mensagem, sem reenvio às cegas | [0007](./docs/adr/0007-operation-states-and-event-trail.md) |
+| Polling do frontend no ritmo do `Retry-After` | A Central só oferece polling, e a decisão leva cerca de 5 s | [0008](./docs/adr/0008-status-tracking-by-client-polling.md) |
+| Requisições à Central assinadas com HMAC-SHA256 | Integridade da mensagem, com timestamp contra replay | [0009](./docs/adr/0009-hmac-signed-central-requests.md) |
+| Testes nas fronteiras: API HTTP, rede do frontend e navegador | Os cenários de erro ficam na integração, onde o WireMock é determinístico | [0010](./docs/adr/0010-test-strategy.md) |
+| TanStack Router e Query, React Hook Form + Zod, Tailwind + shadcn/ui | Rotas tipadas, polling e estado do envio prontos | [0011](./docs/adr/0011-frontend-stack.md) |
+| Identidade visual da Cielo, só tema claro | A marca aparece com precisão, não com volume | [0012](./docs/adr/0012-cielo-visual-identity.md) |
+| Histórico lido só do banco | Lista rápida e independente da Central | [0013](./docs/adr/0013-operation-history-from-local-database.md) |
 
 **Como a duplicidade é evitada** ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)):
 
@@ -195,80 +137,61 @@ Um resumo; cada ADR traz o contexto e as opções descartadas. O [catálogo de r
 
 O envio duplo concorrente é coberto pelos testes de integração, e o duplo clique pelo E2E.
 
-**Segredo HMAC.** O valor de `CENTRAL_HMAC_SECRET` versionado no `compose.yaml` (`dev-somente-local-nao-usar-em-producao`) é **só de desenvolvimento**. Um segredo real nunca seria versionado: viria do ambiente de execução. Fora do compose, a variável não tem valor padrão e o backend não sobe sem ela ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
-
 ## 7. Bibliotecas e justificativas
 
-Só bibliotecas externas ao Java, ao Node e ao próprio React. A assinatura HMAC usa apenas `javax.crypto.Mac`, sem biblioteca adicional.
+A assinatura HMAC usa só `javax.crypto.Mac`, sem biblioteca adicional.
 
-**Backend** ([`backend/pom.xml`](./backend/pom.xml), Spring Boot 4.1.2; versões gerenciadas pelo Spring Boot, salvo indicação):
+**Backend** ([`backend/pom.xml`](./backend/pom.xml), versões do Spring Boot 4.1.2, salvo indicação):
 
 | Biblioteca | Justificativa |
 |---|---|
-| `spring-boot-starter-webmvc` | API REST e `ProblemDetail` para os erros em `application/problem+json` |
-| `spring-boot-starter-validation` | Bean Validation dos corpos das requisições |
-| `spring-boot-starter-restclient` | `RestClient` do adaptador da Central de Convênios, com os timeouts configurados por propriedade |
-| `spring-boot-starter-data-jpa` | Persistência de autorizações, operações e eventos |
+| `spring-boot-starter-webmvc` + `validation` | API REST, `ProblemDetail` e Bean Validation |
+| `spring-boot-starter-restclient` | `RestClient` da Central de Convênios, com os timeouts por propriedade |
+| `spring-boot-starter-data-jpa` + `postgresql` | Persistência de autorizações, operações e eventos |
 | `spring-boot-starter-flyway` + `flyway-database-postgresql` | Schema versionado, incluindo as constraints da deduplicação |
-| `postgresql` | Driver JDBC do PostgreSQL |
-| `springdoc-openapi-starter-webmvc-ui` 3.2.0 | OpenAPI gerado do código e Swagger UI em `/swagger-ui.html`; a linha 3.x é a compatível com o Spring Boot 4 |
-| `spring-boot-starter-webmvc-test` (teste) | `RestTestClient` e o suporte de teste do Spring Boot para exercitar a API HTTP |
-| `spring-boot-testcontainers`, `testcontainers-junit-jupiter`, `testcontainers-postgresql` (teste) | PostgreSQL real nos testes, com a mesma imagem do compose |
-| `wiremock-standalone` 3.13.2 (teste) | Central de Convênios simulada de forma determinística (503, 404, timeout) e conferência da assinatura HMAC recebida; a versão standalone tem Jetty e Jackson sombreados, sem conflito com o classpath do Spring Boot 4 |
+| `springdoc-openapi-starter-webmvc-ui` 3.2.0 | OpenAPI gerado do código e Swagger UI; a linha 3.x é a do Spring Boot 4 |
+| `spring-boot-starter-webmvc-test` + Testcontainers (teste) | API HTTP exercitada com PostgreSQL real, na mesma imagem do compose |
+| `wiremock-standalone` 3.13.2 (teste) | Central simulada de forma determinística e conferência do HMAC; a versão standalone evita conflito de classpath com o Spring Boot 4 |
 
-**Frontend** ([`frontend/package.json`](./frontend/package.json), gerenciado com pnpm):
+**Frontend** ([`frontend/package.json`](./frontend/package.json), com pnpm):
 
 | Biblioteca | Justificativa |
 |---|---|
-| `@tanstack/react-router` | Uma rota tipada por passo do fluxo, com parâmetros tipados |
-| `@tanstack/react-query` | `refetchInterval` para o polling, `isPending` para desabilitar o envio e cancelamento com `AbortSignal` |
-| `react-hook-form` + `@hookform/resolvers` + `zod` | Formulários com validação de formato da conta de recebimento de destino declarada num schema |
-| `tailwindcss` + `@tailwindcss/vite` | Estilos utilitários, integrados ao build do Vite |
-| `shadcn` + `@base-ui/react` | Componentes shadcn/ui copiados para o projeto sobre primitivas acessíveis do Base UI; o pacote `shadcn` fornece a CLI e o CSS base |
-| `class-variance-authority` | Variantes tipadas dos componentes (ex.: o botão) |
-| `cn` | Junção condicional de classes nos componentes de UI |
-| `tw-animate-css` | Animações usadas pelos componentes shadcn/ui |
-| `lucide-react` | Ícones |
-| `@fontsource-variable/nunito-sans` | Fonte da identidade visual (Nunito Sans) empacotada no build, sem depender de CDN |
-| `vite` + `@vitejs/plugin-react` (dev) | Servidor de desenvolvimento com proxy de `/api` e build de produção |
-| `typescript` + `@types/*` (dev) | Tipagem de ponta a ponta |
-| `vitest` + `jsdom` (dev) | Testes de componente rápidos, no mesmo pipeline do Vite |
-| `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom` (dev) | Testes pelo que o usuário vê e faz, não pela implementação |
-| `msw` (dev) | Intercepta `/api` nos testes de componente, sem mockar o código da aplicação |
+| `@tanstack/react-router` | Uma rota tipada por passo do fluxo |
+| `@tanstack/react-query` | Polling com `refetchInterval`, estado do envio e cancelamento com `AbortSignal` |
+| `react-hook-form` + `@hookform/resolvers` + `zod` | Validação do formato da conta de destino declarada num schema |
+| `tailwindcss` + `shadcn` sobre `@base-ui/react` | Estilos utilitários e componentes sobre primitivas acessíveis |
+| `lucide-react` + `@fontsource-variable/nunito-sans` | Ícones e a fonte da identidade visual, empacotada sem CDN |
+| `vitest` + Testing Library + `msw` (dev) | Testes de componente pelo que o usuário vê, com a rede interceptada |
 | `@playwright/test` (dev) | E2E no navegador contra a stack do compose |
-| `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals` (dev) | Lint, incluindo as regras dos hooks do React |
-| `prettier` + `prettier-plugin-tailwindcss` (dev) | Formatação e ordem consistente das classes do Tailwind |
+
+O resto é ferramental: Vite e TypeScript no build, ESLint (com as regras dos hooks do React) e Prettier (com a ordem das classes do Tailwind) na qualidade. `class-variance-authority`, `cn` e `tw-animate-css` vêm com os componentes do shadcn/ui.
 
 ## 8. Diferenciais implementados
 
-Os quatro diferenciais do briefing ([D-01 a D-04](./docs/requirements.md#diferenciais)):
+Os quatro diferenciais do briefing ([D-01 a D-04](./docs/requirements.md#diferenciais)), além do Swagger UI e da CI com as três suítes:
 
-- **Integridade da mensagem (HMAC).** Toda requisição à Central de Convênios leva `X-Assinatura` (HMAC-SHA256 sobre timestamp, método, caminho e corpo) e `X-Timestamp`. Verificar cabe à Central de Convênios, e o simulador ignora os headers; os testes conferem a assinatura no que o WireMock recebeu ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
-- **Trilha de eventos.** Cada mudança de estado grava um evento (`SOLICITADA`, `ENVIADA`, `FALHA_ENVIO`, `CONFIRMADA`, `REJEITADA`) numa tabela só de inserção, na mesma transação; a tela mostra a linha do tempo ([ADR-0007](./docs/adr/0007-operation-states-and-event-trail.md)).
-- **Testes de cenários de erro.** Testes de integração com WireMock para 503, 404, timeout, envio duplo concorrente, `409` e `422`, e E2E do duplo clique ([ADR-0010](./docs/adr/0010-test-strategy.md)).
-- **UX.** Botão desabilitado durante o envio, parcelas inelegíveis desabilitadas com o motivo, indicação de espera, linha do tempo da operação e mensagens de erro com a ação possível ("Tentar novamente", "Atualizar").
-
-Além disso: documentação OpenAPI com Swagger UI e CI no GitHub Actions com as três suítes.
+- **HMAC:** toda requisição à Central de Convênios leva `X-Assinatura` e `X-Timestamp`, e os testes conferem a assinatura recebida pelo WireMock ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
+- **Trilha de eventos:** cada mudança de estado grava um evento na mesma transação, e a tela mostra a linha do tempo ([ADR-0007](./docs/adr/0007-operation-states-and-event-trail.md)).
+- **Testes de cenários de erro:** 503, 404, timeout, envio duplo concorrente, `409` e `422` na integração, e o duplo clique no E2E ([ADR-0010](./docs/adr/0010-test-strategy.md)).
+- **UX:** envio desabilitado durante a requisição, parcelas inelegíveis com o motivo, indicação de espera e erros com a ação possível.
 
 ## 9. Limitações conhecidas
 
-- **Protocolo órfão em timeout.** Um timeout no envio é ambíguo: a Central de Convênios pode ter aceitado. A operação vai para `FALHA_ENVIO`, e o reenvio pode criar um segundo protocolo na Central de Convênios, que fica órfão. Não tem solução sem idempotência do lado dela ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
-- **404 depois de reiniciar o simulador.** O simulador guarda as operações em memória. Depois de reiniciá-lo, uma operação `PENDENTE` recebe 404 do protocolo: continua `PENDENTE`, com o aviso de protocolo não reconhecido, e a tela para o polling. As parcelas dela continuam travadas, e a aplicação não oferece como liberá-las; na demonstração, só `docker compose down -v` resolve ([ADR-0007](./docs/adr/0007-operation-states-and-event-trail.md)).
-- **Data/hora dos eventos finais.** Como o acompanhamento é por polling do frontend, a data/hora de `CONFIRMADA` e `REJEITADA` na trilha é a de quando observamos a decisão, não a de quando a Central de Convênios decidiu. Uma operação sem ninguém olhando fica `PENDENTE` no banco até alguém abrir a tela ([ADR-0007](./docs/adr/0007-operation-states-and-event-trail.md), [ADR-0008](./docs/adr/0008-status-tracking-by-client-polling.md)).
-- **Conexão com o banco presa durante chamadas à Central de Convênios.** O envio relê a agenda e envia a operação dentro de uma única transação, e cada consulta de uma operação `PENDENTE` chama a Central de Convênios dentro da sua transação. Com 2 s de conexão e 5 s de leitura por chamada, uma conexão pode ficar presa por até cerca de 14 s no envio e 7 s na consulta; com a Central lenta e várias telas abertas, o pool de conexões pode se esgotar. É aceitável nesta escala, e a evolução é chamar a Central fora da transação ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
-- **Conta de recebimento de destino** validada só no formato, sem verificar se existe ([RF-03](./docs/requirements.md#requisitos-funcionais)).
+- **Protocolo órfão em timeout.** Um timeout no envio é ambíguo, porque a Central de Convênios pode ter aceitado. A operação vai para `FALHA_ENVIO`, e o reenvio pode deixar um protocolo órfão na Central. Não há solução sem idempotência do lado dela ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
+- **Parcelas travadas se o simulador reiniciar.** O simulador guarda as operações em memória. Depois de reiniciado, uma operação `PENDENTE` recebe 404 e continua `PENDENTE`, com aviso, e as parcelas dela ficam travadas. Na demonstração, só `docker compose down -v` resolve ([ADR-0007](./docs/adr/0007-operation-states-and-event-trail.md)).
+- **Data/hora dos eventos finais.** É a de quando o polling observou a decisão, não a de quando a Central decidiu. Sem ninguém na tela, a operação fica `PENDENTE` no banco ([ADR-0008](./docs/adr/0008-status-tracking-by-client-polling.md)).
+- **Conexão do banco presa durante as chamadas à Central.** O envio e a consulta chamam a Central dentro da transação, por até cerca de 14 s no envio e 7 s na consulta. Com a Central lenta e muitas telas abertas, o pool de conexões pode se esgotar. A evolução é chamar a Central fora da transação ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
+- **Conta de destino** validada só no formato, sem verificar se existe ([RF-03](./docs/requirements.md#requisitos-funcionais)).
 
 ## 10. Fora de escopo e próximos passos
 
-Escolhas de escopo, a partir de ["Fora de escopo"](./docs/requirements.md#fora-de-escopo) no catálogo, com o próximo passo de cada uma:
+Escolhas de escopo, a partir de ["Fora de escopo"](./docs/requirements.md#fora-de-escopo) no catálogo:
 
-- **Autenticação e autorização de usuários.** Não há login. **Risco aceito:** qualquer pessoa com acesso à tela pode registrar a autorização de qualquer `beneficiarioId`. Próximo passo: Spring Security com OAuth2/OIDC ([ADR-0004](./docs/adr/0004-single-flow-without-authentication.md)).
-- **Separação de personas.** O beneficiário daria a autorização, e o operador da nova credora conduziria a portabilidade, em telas separadas ([ADR-0004](./docs/adr/0004-single-flow-without-authentication.md)).
-- **Identificação real do beneficiário**, em vez do identificador digitado ([ADR-0004](./docs/adr/0004-single-flow-without-authentication.md)).
-- **Expiração e revogação da autorização** ([ADR-0004](./docs/adr/0004-single-flow-without-authentication.md)).
-- **Acompanhamento no backend.** Um job consultando a Central de Convênios para as operações pendentes limitaria o atraso dos eventos finais; depois, SSE/WebSocket para empurrar as mudanças à tela. O job é pré-requisito do push ([ADR-0008](./docs/adr/0008-status-tracking-by-client-polling.md)).
-- **Verificação da assinatura HMAC pela Central de Convênios**, que exigiria alterar o simulador ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
-- **Recuperação de protocolos órfãos** após timeout no envio, que depende de idempotência do lado da Central de Convênios ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
+- **Autenticação e ciclo de vida da autorização.** Não há login. **Risco aceito:** qualquer pessoa com acesso à tela pode registrar a autorização de qualquer `beneficiarioId`. Próximos passos: Spring Security com OAuth2/OIDC, telas separadas para o beneficiário e o operador, identificação real do beneficiário, e expiração e revogação da autorização ([ADR-0004](./docs/adr/0004-single-flow-without-authentication.md)).
+- **Acompanhamento no backend:** um job consultando as operações pendentes e, depois, SSE ou WebSocket para levar as mudanças à tela ([ADR-0008](./docs/adr/0008-status-tracking-by-client-polling.md)).
+- **Verificação do HMAC pela Central de Convênios**, que exigiria alterar o simulador ([ADR-0009](./docs/adr/0009-hmac-signed-central-requests.md)).
+- **Recuperação de protocolos órfãos** após timeout no envio, que depende de idempotência do lado da Central ([ADR-0005](./docs/adr/0005-idempotent-portability-requests.md)).
 
 ## 11. Como a IA foi usada
 

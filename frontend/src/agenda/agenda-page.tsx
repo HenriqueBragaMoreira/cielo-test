@@ -37,13 +37,10 @@ export function AgendaPage() {
     </div>
   )
 
-  // depois que a agenda trouxe parcelas, o formulário fica montado mesmo que uma atualização falhe ou venha vazia
-  // (409/422): a conta digitada e a mensagem do envio continuam à vista
-  const [beneficiarioComParcelas, setBeneficiarioComParcelas] =
-    useState<string>()
-  if (agenda.data?.length && beneficiarioComParcelas !== beneficiarioId) {
-    setBeneficiarioComParcelas(beneficiarioId)
-  }
+  // a rota remonta a página a cada beneficiário. Depois que a agenda trouxe parcelas, o formulário fica montado mesmo
+  // que uma atualização venha vazia (409/422): a conta digitada e a mensagem do envio continuam à vista
+  const [teveParcelas, setTeveParcelas] = useState(false)
+  if (agenda.data?.length && !teveParcelas) setTeveParcelas(true)
 
   const erroAgenda = agenda.error && (
     <div
@@ -67,7 +64,7 @@ export function AgendaPage() {
     </div>
   )
 
-  if (agenda.data?.length || beneficiarioComParcelas === beneficiarioId) {
+  if (teveParcelas || agenda.data?.length) {
     return (
       <EnvioOperacaoForm
         beneficiarioId={beneficiarioId}

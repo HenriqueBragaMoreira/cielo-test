@@ -36,10 +36,7 @@ const tituloDaSituacao: Record<Operacao["status"], string> = {
   FALHA_ENVIO: "Falha no envio",
 }
 
-/**
- * Passo 3: a operação acompanhada sozinha até a confirmação ou a rejeição (ADR-0008). O polling segue o
- * `Retry-After` e para no estado final; ao sair da tela, o `AbortSignal` cancela a consulta em andamento.
- */
+/** Passo 3: polling pelo `Retry-After` até o estado final (ADR-0008). */
 export function OperacaoPage() {
   const { operacaoId } = useParams({
     from: "/operacoes-portabilidade/$operacaoId",
@@ -112,7 +109,7 @@ export function OperacaoPage() {
   )
 }
 
-/** A última consulta não trouxe o status atual da Central; o polling segue o `Retry-After`, ausente se o protocolo não é mais reconhecido. */
+/** A última consulta não trouxe o status atual da Central (ADR-0007). */
 function AvisoAtualizacao({ operacao }: { operacao: Operacao }) {
   if (!operacao.avisoAtualizacao) return null
   return (
@@ -147,7 +144,6 @@ function PainelSituacao({
 }) {
   const pendente = operacao.status === "PENDENTE"
   const { superficie, tom } = estadoDaOperacao[operacao.status]
-  // enquanto a Central decide, o ícone gira
   const Icone = pendente
     ? LoaderCircleIcon
     : estadoDaOperacao[operacao.status].Icone
@@ -253,11 +249,7 @@ function PainelSituacao({
   )
 }
 
-/**
- * Os eventos na gramática da régua da agenda: um eixo, uma marca por evento com o nome e a data e hora. Os eventos
- * de uma operação acontecem a segundos uns dos outros, então aqui a distância é a ordem, não a duração. Num cartão
- * estreito, ou com mais eventos do que cabem lado a lado, o eixo fica de pé e cada evento vira uma linha.
- */
+/** Na gramática da régua da agenda, mas a distância é a ordem: os eventos acontecem a segundos uns dos outros. */
 function LinhaDoTempo({ operacao }: { operacao: Operacao }) {
   const { eventos } = operacao
   if (!eventos.length) return null

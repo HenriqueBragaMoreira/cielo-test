@@ -25,6 +25,7 @@ const agendaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/beneficiarios/$beneficiarioId/agenda",
   staticData: { passo: 2 },
+  remountDeps: ({ params }) => params.beneficiarioId,
   component: AgendaPage,
 })
 

@@ -35,6 +35,18 @@ class AgendaApiTest extends ApiTest {
 	}
 
 	@Test
+	void beneficiarioMaiorQueOLimiteRespondeBadRequestSemChamarACentral() {
+		consultarAgenda("B".repeat(101))
+				.expectStatus().isBadRequest()
+				.expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+				.expectBody()
+				.jsonPath("$.title").isEqualTo("Requisição inválida")
+				.jsonPath("$.detail").isEqualTo("Verifique os campos informados e tente novamente.");
+
+		central.verify(0, anyRequestedFor(anyUrl()));
+	}
+
+	@Test
 	void beneficiarioAutorizadoRecebeAsParcelasComAElegibilidade() {
 		autorizar("BEN001");
 		central.stubFor(get("/beneficiarios/BEN001/agenda").willReturn(okJson("""
