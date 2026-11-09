@@ -2,6 +2,18 @@
 
 Solução fullstack (Java + React) para o [desafio técnico](./desafio-tecnico-fullstack-react-java-candidato-junior-pleno.md) de portabilidade de convênios de desconto em folha, integrada ao simulador da Central de Convênios fornecido.
 
+## Para o avaliador
+
+Roteiro curto, com a stack de pé (`docker compose up --build -d --wait`, banco limpo) em <http://localhost:8080>:
+
+1. **Confirmação:** autorize o `BEN001`, selecione a `P001`, preencha a conta de destino (por exemplo `001`, `1234`, `56789`, `0`) e envie. Cerca de 5 s depois, a operação fica "Confirmada".
+2. **Rejeição:** repita com o `BEN002` e a `P010`. A operação fica "Rejeitada", com o motivo dado pela Central de Convênios.
+3. **Falha de comunicação:** na agenda do `BEN001`, selecione a `P002` e preencha a conta, sem enviar. Rode `docker compose stop mock-central` e envie: a tela explica o erro e oferece "Tentar novamente". Rode `docker compose start mock-central` e tente de novo: o reenvio usa a mesma `Idempotency-Key` e a operação segue até "Confirmada".
+4. **Histórico:** o link "Histórico", no topo, lista as operações enviadas, e cada linha abre a operação.
+5. **API:** o Swagger UI em <http://localhost:8080/swagger-ui.html> permite chamar cada endpoint direto.
+
+**Sobre o `BEN_ERRO`.** No simulador, a agenda dele é vazia. Como o backend valida as parcelas contra essa agenda ([ADR-0006](./docs/adr/0006-eligibility-validated-against-central.md)), não há o que enviar, e o 503 do envio não aparece pela UI. A falha de comunicação fica demonstrada no passo 3, e o 503 do `BEN_ERRO` é coberto pelos testes de integração do backend. O passo a passo completo está no [roteiro de demonstração](#5-roteiro-de-demonstração).
+
 ## 1. Visão geral
 
 **Problema.** Uma nova credora quer assumir o direito de receber parcelas de convênios de desconto em folha que hoje pertencem a outro credor. Para isso precisa da autorização do beneficiário, consultar a agenda de parcelas na Central de Convênios, pedir a portabilidade das parcelas escolhidas e acompanhar a decisão, que não é imediata. Reenvios (duplo clique, retry após falha de conexão) não podem criar duas operações para a mesma intenção.
