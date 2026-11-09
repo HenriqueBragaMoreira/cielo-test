@@ -62,10 +62,7 @@ class OperacaoPortabilidade {
 	protected OperacaoPortabilidade() {
 	}
 
-	/**
-	 * Nasce PENDENTE e ainda sem protocolo, para a inserção já reservar a chave e as parcelas antes do envio à Central
-	 * (ADR-0005). Esse estado sem protocolo só existe dentro da transação do envio.
-	 */
+	/** Nasce PENDENTE sem protocolo, para a inserção reservar a chave e as parcelas antes do envio (ADR-0005). */
 	static OperacaoPortabilidade solicitar(String beneficiarioId, List<ParcelaOperacao> parcelas,
 			ContaDestino contaDestino, UUID chaveIdempotencia, String hashCorpo) {
 		var operacao = new OperacaoPortabilidade();
@@ -81,31 +78,24 @@ class OperacaoPortabilidade {
 		return operacao;
 	}
 
-	/** A Central aceitou o envio, ou o reenvio a partir de FALHA_ENVIO, e atribuiu o protocolo. */
 	void registrarEnvio(String protocolo) {
 		status = depoisDoEnvio(StatusOperacao.PENDENTE);
 		this.protocolo = protocolo;
 		registrar(TipoEvento.ENVIADA, null);
 	}
 
-	/** A Central não respondeu ao envio: a operação pode ser reenviada e libera as parcelas (ADR-0007). */
+	/** Libera as parcelas e permite o reenvio (ADR-0007). */
 	void registrarFalhaEnvio() {
 		status = depoisDoEnvio(StatusOperacao.FALHA_ENVIO);
 		registrar(TipoEvento.FALHA_ENVIO, null);
 	}
 
-	/**
-	 * Reenvio a partir de FALHA_ENVIO: volta a PENDENTE sem protocolo, como na criação, para reservar de novo as parcelas
-	 * antes do envio à Central (ADR-0005). Esse estado também só existe dentro da transação do envio.
-	 */
+	/** Volta a PENDENTE sem protocolo, como na criação, para reservar de novo as parcelas (ADR-0005). */
 	void reservarParaReenvio() {
 		status = status.transicionarPara(StatusOperacao.PENDENTE);
 	}
 
-	/**
-	 * A tentativa de envio parte de PENDENTE sem protocolo (a criação ou a reserva do reenvio) e termina no estado que a
-	 * Central der; visto de fora da transação, é o estado inicial ou a transição a partir de FALHA_ENVIO (ADR-0007).
-	 */
+	/** Visto de fora da transação, o resultado é o estado inicial ou a transição a partir de FALHA_ENVIO. */
 	private StatusOperacao depoisDoEnvio(StatusOperacao resultado) {
 		var primeiraTentativa = status == StatusOperacao.PENDENTE && protocolo == null;
 		return primeiraTentativa && resultado.podeSerInicial() ? resultado : status.transicionarPara(resultado);
@@ -116,14 +106,13 @@ class OperacaoPortabilidade {
 		return status.podeIrPara(StatusOperacao.PENDENTE);
 	}
 
-	/** A Central decidiu: confirmação, ou rejeição com o motivo. A data/hora do evento é a da observação (ADR-0007). */
+	/** A data/hora do evento é a da observação, não a da decisão na Central (ADR-0007). */
 	void registrarDecisao(StatusOperacao decisao, String motivoRejeicao) {
 		status = status.transicionarPara(decisao);
 		this.motivoRejeicao = motivoRejeicao;
 		registrar(decisao == StatusOperacao.CONFIRMADA ? TipoEvento.CONFIRMADA : TipoEvento.REJEITADA, motivoRejeicao);
 	}
 
-	/** O pedido tem o mesmo corpo do que criou esta operação, ou seja, é a mesma intenção (ADR-0005). */
 	boolean mesmaIntencao(String hashCorpo) {
 		return this.hashCorpo.equals(hashCorpo);
 	}

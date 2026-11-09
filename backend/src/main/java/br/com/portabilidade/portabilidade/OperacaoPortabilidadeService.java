@@ -51,12 +51,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		this.entityManager = entityManager;
 	}
 
-	/**
-	 * Reenvio da mesma intenção (mesma {@code Idempotency-Key} e mesmo corpo) devolve a operação já gravada sem chamar
-	 * a Central, a não ser que ela esteja em {@code FALHA_ENVIO}: aí a mesma operação é reenviada. A mesma chave com
-	 * outro corpo é recusada com {@code 422} (ADR-0005). Se a Central não responder ao envio, a operação fica gravada em
-	 * {@code FALHA_ENVIO} e a resposta é o {@code 503} com o {@code id} dela (ADR-0007).
-	 */
+	/** Idempotência por {@code Idempotency-Key} (ADR-0005); falha no envio gravada e respondida com 503 (ADR-0007). */
 	Operacao solicitar(UUID chaveIdempotencia, String beneficiarioId, List<String> parcelaIds, ContaDestino conta) {
 		var hashCorpo = hashDoCorpo(beneficiarioId, parcelaIds, conta);
 		Operacao operacao;
@@ -65,9 +60,8 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 					.orElseGet(() -> enviar(chaveIdempotencia, hashCorpo, beneficiarioId, parcelaIds, conta)));
 		}
 		catch (DataIntegrityViolationException e) {
-			// um índice único esperou o commit de outra requisição: a da mesma chave devolve a operação dela como está,
-			// sem reenviar uma FALHA_ENVIO (seria retry automático, ADR-0007); a de outra chave que travou alguma destas
-			// parcelas (ADR-0005) é um conflito
+			// um índice único esperou outra requisição: com a mesma chave, devolve a operação dela sem reenviar
+			// (ADR-0007); com outra chave que travou estas parcelas, é conflito
 			operacao = transacao.execute(status -> {
 				var emOutraOperacao = repository.findParcelasEmOutraOperacaoAtiva(parcelaIds, chaveIdempotencia);
 				if (!emOutraOperacao.isEmpty()) {
@@ -83,15 +77,11 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		return operacao;
 	}
 
-	/**
-	 * A operação já gravada com esta chave, se houver, reenviada se estiver em {@code FALHA_ENVIO}; com outro corpo, a
-	 * chave foi reutilizada. A trava na linha faz um reenvio concorrente esperar este terminar e não enviar de novo.
-	 */
+	/** A trava na linha faz um reenvio concorrente esperar este terminar e não enviar de novo. */
 	private Optional<Operacao> repetida(UUID chaveIdempotencia, String hashCorpo) {
 		return existente(chaveIdempotencia, hashCorpo).map(operacao -> {
 			if (operacao.aguardaReenvio()) {
-				// a reserva vai ao banco antes do envio: parcela travada por outra operação dá 409 sem chamar a Central.
-				// Sem reler a agenda: a operação é a mesma, com os valores lidos na criação
+				// reserva no banco antes do envio: parcela travada por outra operação dá 409 sem chamar a Central
 				operacao.reservarParaReenvio();
 				repository.flush();
 				enviarACentral(operacao, autorizacoes.exigirAutorizacao(operacao.getBeneficiarioId()));
@@ -100,7 +90,6 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		});
 	}
 
-	/** A operação já gravada com esta chave, travada, se houver; com outro corpo, a chave foi reutilizada. */
 	private Optional<OperacaoPortabilidade> existente(UUID chaveIdempotencia, String hashCorpo) {
 		var operacao = repository.findWithLockByChaveIdempotencia(chaveIdempotencia);
 		if (operacao.isPresent() && !operacao.get().mesmaIntencao(hashCorpo)) {
@@ -109,10 +98,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		return operacao;
 	}
 
-	/**
-	 * Grava a operação, envia à Central e grava o resultado na transação de {@link #solicitar} (ADR-0005), a partir do
-	 * evento {@code SOLICITADA}. Os valores das parcelas vêm da agenda da Central, não do cliente (ADR-0006).
-	 */
+	/** Os valores das parcelas vêm da agenda da Central, não do cliente (ADR-0006). */
 	private Operacao enviar(UUID chaveIdempotencia, String hashCorpo, String beneficiarioId, List<String> parcelaIds,
 			ContaDestino conta) {
 		var autorizacao = autorizacoes.exigirAutorizacao(beneficiarioId);
@@ -123,10 +109,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		return Operacao.de(operacao);
 	}
 
-	/**
-	 * Envia a operação à Central, sem retry (ADR-0007): {@code ENVIADA} com o protocolo, ou {@code FALHA_ENVIO} se ela
-	 * não responder. A falha é gravada, não lançada, para a transação fazer commit dela (ADR-0005).
-	 */
+	/** Sem retry (ADR-0007); a falha é gravada, não lançada, para a transação fazer commit dela. */
 	private void enviarACentral(OperacaoPortabilidade operacao, Autorizacao autorizacao) {
 		var conta = operacao.getContaDestino();
 		var envio = new CentralClient.EnvioOperacao(operacao.getBeneficiarioId(), autorizacao.getAutorizacaoId(),
@@ -137,7 +120,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 			protocolo = central.enviarOperacao(envio);
 		}
 		catch (CentralIndisponivelException e) {
-			// um timeout pode ter sido aceito pela Central: o reenvio deixaria esse protocolo órfão (limitação do ADR-0005)
+			// um timeout pode ter sido aceito pela Central: o reenvio deixaria o protocolo órfão (ADR-0005)
 			log.warn("Central indisponível no envio da operação {}", operacao.getId(), e);
 			operacao.registrarFalhaEnvio();
 			return;
@@ -145,12 +128,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		operacao.registrarEnvio(protocolo);
 	}
 
-	/**
-	 * Acompanhamento (ADR-0008): uma operação {@code PENDENTE} consulta a Central a cada leitura e, se ela já decidiu,
-	 * registra a transição e o evento final. Uma operação em estado final não consulta a Central de novo. Se a Central
-	 * não responder, responder fora do contrato ou não reconhecer o protocolo, a operação continua {@code PENDENTE}, sem
-	 * evento, e a resposta leva o {@link AvisoAtualizacao} (ADR-0007).
-	 */
+	/** Só {@code PENDENTE} consulta a Central (ADR-0008); se ela falhar, a resposta leva o aviso (ADR-0007). */
 	@Transactional
 	Operacao consultar(UUID id) {
 		var operacao = repository.findById(id).orElseThrow(() -> new OperacaoNaoEncontradaException(id));
@@ -159,8 +137,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		}
 		try {
 			central.consultarOperacao(operacao.getProtocolo()).ifPresent(decisao -> {
-				// atualização condicional (ADR-0007): relê a linha travada e só decide se ela ainda estiver PENDENTE,
-				// para consultas concorrentes registrarem a transição e o evento final uma única vez
+				// relê travada: consultas concorrentes registram a decisão uma única vez (ADR-0007)
 				entityManager.refresh(operacao, LockModeType.PESSIMISTIC_WRITE);
 				if (operacao.getStatus() == StatusOperacao.PENDENTE) {
 					operacao.registrarDecisao(StatusOperacao.valueOf(decisao.status()), decisao.motivoRejeicao());
@@ -173,7 +150,6 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 			return Operacao.de(operacao, AvisoAtualizacao.FALHA_NA_ATUALIZACAO);
 		}
 		catch (FalhaNaIntegracaoException e) {
-			// resposta fora do contrato: status desconhecido, corpo ilegível ou 4xx que não é 404
 			log.warn("Não foi possível atualizar a operação {}: {}", id, e.getMessage(), e);
 			return Operacao.de(operacao, AvisoAtualizacao.FALHA_NA_ATUALIZACAO);
 		}
@@ -183,7 +159,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		}
 	}
 
-	/** Lê só do banco: não consulta a Central nem registra transição; quem atualiza é {@link #consultar} (ADR-0013). */
+	/** Só do banco, sem consultar a Central (ADR-0013). */
 	@Transactional(readOnly = true)
 	List<ResumoOperacao> listar() {
 		return repository.findHistorico();
@@ -191,7 +167,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 
 	@Override
 	public Set<String> travadas(Collection<String> parcelaIds) {
-		// sem parcelas não há o que consultar, e "in ()" nem é SQL válido
+		// "in ()" não é SQL válido
 		return parcelaIds.isEmpty() ? Set.of() : repository.findParcelasTravadas(parcelaIds);
 	}
 
@@ -202,7 +178,7 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		if (!foraDaAgenda.isEmpty()) {
 			throw new ParcelaForaDaAgendaException(beneficiarioId, foraDaAgenda);
 		}
-		// só a elegibilidade da Central: a trava de parcela fica no banco e dá 409 (ADR-0005)
+		// a trava de parcela fica no banco e dá 409 (ADR-0005)
 		var inelegiveis = parcelaIds.stream()
 				.map(id -> Map.entry(id, Elegibilidade.de(agenda.get(id))))
 				.filter(parcela -> !parcela.getValue().elegivel())
@@ -214,7 +190,6 @@ class OperacaoPortabilidadeService implements TravaDeParcelas {
 		return parcelaIds.stream().map(id -> new ParcelaOperacao(id, agenda.get(id).valor())).toList();
 	}
 
-	/** Identifica a intenção do corpo para a deduplicação por {@code Idempotency-Key} (ADR-0005). */
 	private static String hashDoCorpo(String beneficiarioId, List<String> parcelaIds, ContaDestino conta) {
 		// parcelas ordenadas: a mesma seleção em outra ordem é a mesma intenção
 		var canonico = String.join("\n", beneficiarioId, String.join(",", parcelaIds.stream().sorted().toList()),
